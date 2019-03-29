@@ -1,0 +1,8 @@
+[package]
+name = "coe_tactic"
+version = "0.1"
+lean_version = "3.4.2"
+path = "src"
+
+[dependencies]
+mathlib = {path = "/home/pnm/leanprover/mathlib/"}
