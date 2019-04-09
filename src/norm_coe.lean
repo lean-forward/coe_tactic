@@ -6,183 +6,160 @@ import tactic.basic
 
 namespace tactic
 
-/-
-instances such as has_lift_t ℤ ℕ time out instead of failing
-we assume that the instances should be solved instantly
-and we use mk_instance_bis to work around the timeout problem
--/
-meta def mk_instance_bis (x : expr) : tactic expr :=
-    try_for 1000 (mk_instance x)
+meta def mk_instance_bis (e : expr) : tactic expr :=
+    try_for 1000 (mk_instance e)
 
 end tactic
 
-open tactic
 
 namespace norm_coe
+open tactic
 
-meta def eq_lemma (α β : expr) : tactic expr :=
-do
-    h ← to_expr ``(∀ (x y : %%α), (↑x : %%β) = ↑y = (x = y)),
-    ((), eh) ← solve_aux h `[simp, done],
-    pr ← instantiate_mvars eh,
-    return pr
+meta def is_equation : expr → bool
+| (expr.pi n bi d b) := is_equation b
+| e                  := match (expr.is_eq e) with (some a) := tt | none := ff end
 
-meta def aux_eq (x y : expr) : tactic (expr × option expr) :=
-match x, y with
-| `(@coe %%α %%δ1 %%coe_1 %%a), `(@coe %%β %%δ2 %%coe_2 %%b) :=
+meta def flip_equation : expr → expr
+| (expr.pi n bi d b)           := expr.pi n bi d (flip_equation b)
+| (expr.app (expr.app op x) y) := expr.app (expr.app op y) x
+| e                            := e
+
+meta def mk_local_lams_whnf : expr → tactic (list expr × expr) | e := do
+(expr.lam n bi d b) ← whnf e | return ([], e),
+p ← mk_local' n bi d,
+(ps, r) ← mk_local_lams_whnf (expr.instantiate_var b p),
+return ((p :: ps), r)
+
+meta def lam_from_locals : expr → list expr → expr
+| e ((expr.local_const n m bi t)::locals) :=
+    let e' := lam_from_locals e locals in
+    expr.lam m bi t (e'.abstract_local n)
+| e _ := e
+
+private meta def new_name : name → name
+| name.anonymous        := name.mk_string "norm_coe" name.anonymous
+| (name.mk_string s n)  := name.mk_string s (new_name n)
+| (name.mk_numeral i n) := name.mk_numeral i (new_name n)
+
+private meta def after_set (decl : name) (prio : ℕ) (pers : bool) : tactic unit :=
 do
-    is_def_eq δ1 δ2,
-    let δ := δ1,
+    (declaration.thm n l ty task_e) ← get_decl decl | failed,
+    let new_n := new_name n,
     (do
-        -- α = β
-        is_def_eq α β,
+        guard (is_equation ty),
+        let new_ty := flip_equation ty,
+        let e := task_e.get,
 
-        let new_x := a,
-        let new_y := b,
-        new_e ← to_expr ``(%%new_x = %%new_y),
+        (locals, e') ← mk_local_lams_whnf e,
+        e'' ← mk_eq_symm e',
+        let new_e := expr.lambdas locals e'',
 
-        h ← eq_lemma α δ,
-        let pr := expr.app (expr.app h a) b,
+        let task_new_e := task.pure new_e,
+        add_decl (declaration.thm new_n l new_ty task_new_e)
+    ) <|> add_decl (declaration.thm new_n l ty task_e)
 
-        return (new_e, some pr)
+private meta def mk_cache : list name → tactic simp_lemmas :=
+monad.foldl (λ s, s.add_simp ∘ new_name) simp_lemmas.mk
 
-    ) <|> ( do
-        -- has_lift_t α β
-        coe_a_b ← to_expr ``(has_lift_t %%α %%β) >>= mk_instance_bis,
+@[user_attribute]
+meta def norm_coe_attr : user_attribute simp_lemmas :=
+{
+    name      := `norm_coe,
+    descr     := "attribute for coercion normalization",
+    after_set := some after_set,
+    cache_cfg := {
+        mk_cache     := mk_cache,
+        dependencies := [],
+    }
+}
 
-        new_x ← to_expr ``(@coe %%α %%β %%coe_a_b %%a),
-        let new_y := b,
-        new_e ← to_expr ``(%%new_x = %%new_y),
+@[user_attribute]
+meta def simp_coe_attr : user_attribute simp_lemmas :=
+{
+    name      := `simp_coe,
+    descr     := "attribute for coercion simplification",
+    cache_cfg := {
+        mk_cache     := monad.foldl simp_lemmas.add_simp simp_lemmas.mk,
+        dependencies := [],
+    }
+}
 
-        h ← eq_lemma β δ,
-        let bar := expr.app (expr.app h new_x) new_y,
-
-        t ← to_expr ``(%%x = %%y = (↑%%new_x = (↑%%new_y : %%δ))),
-        ((), foo) ← solve_aux t `[simp, done],
-        foo ← instantiate_mvars foo,
-
-        pr ← mk_eq_trans foo bar,
-        return (new_e, some pr)
-
-    ) <|> ( do
-        -- has_lift_t β α
-        coe_b_a ← to_expr ``(has_lift_t %%β %%α) >>= mk_instance_bis,
-
-        let new_x := a,
-        new_y ← to_expr ``(@coe %%β %%α %%coe_b_a %%b),
-        new_e ← to_expr ``(%%new_x = %%new_y),
-        
-        h ← eq_lemma α δ,
-        let bar := expr.app (expr.app h new_x) new_y,
-
-        t ← to_expr ``(%%x = %%y = ((↑%%new_x : %%δ) = ↑%%new_y)),
-        ((), foo) ← solve_aux t `[simp, done],
-        foo ← instantiate_mvars foo,
-
-        pr ← mk_eq_trans foo bar,
-        return (new_e, some pr)
-
-    ) <|> ( do
-        new_e ← to_expr ``(%%x = %%y),
-        return (new_e, none)
-    )
-| new_x, new_y :=
+meta def aux2 (e : expr) : tactic (expr × expr) :=
 do
-    new_e ← to_expr ``(%%new_x = %%new_y),
-    return (new_e, none)
-end
+    (expr.app (expr.app op x) y) ← return e | failed,
+    `(@coe %%α %%δ %%coe1 %%xx) ← return x | failed,
+    `(@coe %%β %%γ %%coe2 %%yy) ← return y | failed,
+    is_def_eq δ γ,
 
-meta def aux_addition (x y : expr) : tactic (expr × option expr) :=
-match x, y with
-| `(@coe %%α %%δ1 %%coe_1 %%a), `(@coe %%β %%δ2 %%coe_2 %%b) :=
-do
-    is_def_eq δ1 δ2,
-    let δ := δ1,
-    e ← to_expr ``(%%x + %%y),
     (do
-        -- α = β
         is_def_eq α β,
+        pr ← mk_eq_refl e,
+        return (e, pr)
+    ) <|> (do
+        coe3 ← mk_app `has_lift_t [α, β] >>= mk_instance_bis,
+        new_x ← to_expr ``(@coe %%β %%δ %%coe2 (@coe %%α %%β %%coe3 %%xx)),
+        let new_e := expr.app (expr.app op new_x) y,
 
-        let new_x := a,
-        let new_y := b,
-        new_e ← to_expr ``(↑(%%new_x + %%new_y) : %%δ),
+        s ← simp_coe_attr.get_cache,
+        (x', eq_x) ← s.rewrite new_x,
+        eq_x ← mk_eq_symm eq_x,
 
-        h ← to_expr ``(%%e = %%new_e),
-        ((), pr) ← solve_aux h `[simp, done],
-        pr ← instantiate_mvars pr,
+        pr ← mk_congr_arg op eq_x,
+        pr ← mk_congr_fun pr y,
+        return (new_e, pr)
+    ) <|> (do
+        coe3 ← mk_app `has_lift_t [β, α] >>= mk_instance_bis,
+        new_y ← to_expr ``(@coe %%α %%δ %%coe1 (@coe %%β %%α %%coe3 %%yy)),
+        let new_e := expr.app (expr.app op x) new_y,
 
-        return (new_e, some pr)
+        s ← simp_coe_attr.get_cache,
+        (y', eq_y) ← s.rewrite new_y,
+        eq_y ← mk_eq_symm eq_y,
 
-    ) <|> ( do
-        -- has_lift_t α β
-        coe_a_b ← to_expr ``(has_lift_t %%α %%β) >>= mk_instance_bis,
-
-        new_x ← to_expr ``(@coe %%α %%β %%coe_a_b %%a),
-        let new_y := b,
-        new_e ← to_expr ``(↑(%%new_x + %%new_y) : %%δ),
-
-        h ← to_expr ``(%%e = %%new_e),
-        ((), pr) ← solve_aux h `[simp, done],
-        pr ← instantiate_mvars pr,
-
-        return (new_e, some pr)
-
-    ) <|> ( do
-        -- has_lift_t β α
-        coe_b_a ← to_expr ``(has_lift_t %%β %%α) >>= mk_instance_bis,
-
-        let new_x := a,
-        new_y ← to_expr ``(@coe %%β %%α %%coe_b_a %%b),
-        new_e ← to_expr ``(@coe %%α %%δ %%coe_1 (%%new_x + %%new_y)),
-
-        h ← to_expr ``(%%e = %%new_e),
-        ((), pr) ← solve_aux h `[simp, done],
-        pr ← instantiate_mvars pr,
-
-        return (new_e, some pr)
-
-    ) <|> ( do
-        new_e ← to_expr ``(%%x + %%y),
-        return (new_e, none)
+        pr ← mk_congr_arg (expr.app op x) eq_y,
+        return (new_e, pr)
+    ) <|> (do
+        pr ← mk_eq_refl e,
+        return (e, pr)
     )
-| _, _ :=
-do
-    new_e ← to_expr ``(%%x + %%y),
-    return (new_e, none)
-end
 
-meta def derive1 (f : expr → tactic (expr × expr)) : expr → tactic (expr × option expr)
-| `(%%a + %%b) := aux_addition a b
-| `(%%a = %%b) := aux_eq a b
-| a            := return (a, none)
-
-/-
-the core tactic is the same as for norm_num
--/
-meta def derive : expr → tactic (expr × expr) | e :=
+meta def aux1 (e : expr) : tactic (expr × expr) :=
 do
-    e ← instantiate_mvars e,
-    (_, e', pr) ←
-        ext_simplify_core () {} simp_lemmas.mk (λ _, failed)
-            (λ _ _ _ _ _, failed)
-            (λ _ _ _ _ e,
-            do (new_e, pr) ← derive1 derive e,
-                guard (¬ new_e =ₐ e),
-                return ((), new_e, pr, tt))
-            `eq e,
-    return (e', pr)
+    (tmp_e, pr1) ← aux2 e <|> (mk_eq_refl e >>= λ pr, return (e, pr)),
+
+    ty ← infer_type e,
+    let r := match ty with
+    | (expr.sort zero) := `iff
+    | _                := `eq
+    end,
+
+    s ← norm_coe_attr.get_cache,
+    (new_e, pr2) ← s.rewrite tmp_e failed r,
+
+    pr2 ← match r with
+    |`iff := mk_app `propext [pr2]
+    |_    := return pr2
+    end,
+
+    pr ← mk_eq_trans pr1 pr2,
+    return (new_e, pr)
+
+meta def derive1 (_ : unit) (e : expr) : tactic (unit × expr × expr) :=
+do
+    (new_e, pr) ← aux1 e,
+    return ((), new_e, pr)
+
+meta def derive (e : expr) : tactic (expr × expr) :=
+do
+    ((), new_e, pr) ← simplify_bottom_up () derive1 e,
+    return (new_e, pr)
 
 end norm_coe
 
+
 namespace tactic.interactive
-
+open tactic interactive interactive.types
 open norm_coe
-open interactive
-open interactive.types
-
-/-
-the interactive tactics are the same as for norm_num
--/
 
 meta def norm_coe1 (loc : parse location) : tactic unit :=
 do
@@ -192,8 +169,13 @@ do
     when loc.include_goal $ try tactic.triv,
     when (¬ ns.empty) $ try tactic.contradiction
 
-meta def norm_coe (hs : parse simp_arg_list) (l : parse location) : tactic unit :=
-    repeat1 $ orelse' (norm_coe1 l) $
-    simp_core {} (norm_coe1 (loc.ns [none])) ff hs [] l
+meta def simp_coe1 (loc : parse location) : tactic unit :=
+do
+    s ← simp_coe_attr.get_cache,
+    ns ← loc.get_locals,
+    tt ← replace_at (simplify s []) ns loc.include_goal
+        | fail "simp_coe failed to simplify",
+    when loc.include_goal $ try tactic.triv,
+    when (¬ ns.empty) $ try tactic.contradiction
 
 end tactic.interactive
