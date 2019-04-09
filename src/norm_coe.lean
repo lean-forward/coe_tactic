@@ -17,7 +17,7 @@ open tactic
 
 meta def is_equation : expr → bool
 | (expr.pi n bi d b) := is_equation b
-| e                  := match (expr.is_eq e) with (some a) := tt | none := ff end
+| e                  := (expr.is_eq e).is_some
 
 meta def flip_equation : expr → expr
 | (expr.pi n bi d b)           := expr.pi n bi d (flip_equation b)
@@ -84,9 +84,10 @@ meta def simp_coe_attr : user_attribute simp_lemmas :=
     }
 }
 
-meta def aux2 (e : expr) : tactic (expr × expr) :=
+--meta def aux2 (e : expr) : tactic (expr × expr) :=
+meta def aux2 : expr → tactic (expr × expr)
+| e@(expr.app (expr.app op x) y) :=
 do
-    (expr.app (expr.app op x) y) ← return e | failed,
     `(@coe %%α %%δ %%coe1 %%xx) ← return x | failed,
     `(@coe %%β %%γ %%coe2 %%yy) ← return y | failed,
     is_def_eq δ γ,
@@ -122,10 +123,11 @@ do
         pr ← mk_eq_refl e,
         return (e, pr)
     )
+| _ := failed
 
 meta def aux1 (e : expr) : tactic (expr × expr) :=
 do
-    (tmp_e, pr1) ← aux2 e <|> (mk_eq_refl e >>= λ pr, return (e, pr)),
+    (tmp_e, pr1) ← aux2 e <|> prod.mk e <$> mk_eq_refl e,
 
     ty ← infer_type e,
     let r := match ty with
