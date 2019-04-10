@@ -3,7 +3,7 @@ unit tests suggested by Kevin Buzzard
 -/
 
 import data.complex.basic -- ℕ, ℤ, ℚ, ℝ, ℂ
-import norm_coe lemmas
+import norm_coe lemmas_norm_coe lemmas_simp_coe
 
 constants (an bn cn dn : ℕ) (az bz cz dz : ℤ) (aq bq cq dq : ℚ)
 constants (ar br cr dr : ℝ) (ac bc cc dc : ℂ)
