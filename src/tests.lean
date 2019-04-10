@@ -8,8 +8,8 @@ import norm_coe lemmas_norm_coe lemmas_simp_coe
 constants (an bn cn dn : ℕ) (az bz cz dz : ℤ) (aq bq cq dq : ℚ)
 constants (ar br cr dr : ℝ) (ac bc cc dc : ℂ)
 
-example : (an : ℤ) = bn → an = bn := by {norm_coe1, intro, assumption}
-example : an = bn → (an : ℤ) = bn := by {norm_coe1, intro, assumption}
+example : (an : ℤ) = bn → an = bn := by {intro, assumption_mod_coe}
+example : an = bn → (an : ℤ) = bn := by {intro, assumption_mod_coe}
 example : az = bz ↔ (az : ℚ) = bz := by {norm_coe1, refl}
 
 example : (aq : ℝ) = br ↔ (aq : ℂ) = br := by {norm_coe1, refl}

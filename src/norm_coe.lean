@@ -86,8 +86,7 @@ meta def simp_coe_attr : user_attribute simp_lemmas :=
     }
 }
 
---meta def aux2 (e : expr) : tactic (expr × expr) :=
-meta def aux2 : expr → tactic (expr × expr)
+meta def post_aux : expr → tactic (expr × expr)
 | e@(expr.app (expr.app op x) y) :=
 do
     `(@coe %%α %%δ %%coe1 %%xx) ← return x | failed,
@@ -127,9 +126,9 @@ do
     )
 | _ := failed
 
-meta def aux1 (e : expr) : tactic (expr × expr) :=
+meta def post (e : expr) : tactic (expr × expr) :=
 do
-    (tmp_e, pr1) ← aux2 e <|> prod.mk e <$> mk_eq_refl e,
+    (tmp_e, pr1) ← post_aux e <|> prod.mk e <$> mk_eq_refl e,
 
     ty ← infer_type e,
     let r := match ty with
@@ -150,10 +149,10 @@ do
 
 meta def derive1 (_ : unit) (e : expr) : tactic (unit × expr × expr) :=
 do
-    (new_e, pr) ← aux1 e,
+    (new_e, pr) ← post e,
     return ((), new_e, pr)
 
-meta def derive (e : expr) : tactic (expr × expr) :=
+meta def derive (cfg : simp_config := {}) (e : expr) : tactic (expr × expr) :=
 do
     ((), new_e, pr) ← simplify_bottom_up () derive1 e,
     return (new_e, pr)
@@ -161,9 +160,27 @@ do
 end norm_coe
 
 
+namespace tactic
+open tactic
+open norm_coe
+
+meta def assumption_mod_coe : tactic unit :=
+do {
+    let cfg : simp_config := {fail_if_unchanged := ff},
+    ctx ← local_context,
+    _ ← replace_at (derive cfg) ctx tt,
+    assumption
+} <|> fail "assumption modulo coercion failed"
+
+end tactic
+
+
 namespace tactic.interactive
 open tactic interactive interactive.types
 open norm_coe
+
+meta def assumption_mod_coe : tactic unit :=
+    tactic.assumption_mod_coe
 
 meta def norm_coe1 (loc : parse location) : tactic unit :=
 do
