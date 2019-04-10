@@ -44,6 +44,7 @@ private meta def new_name : name → name
 private meta def after_set (decl : name) (prio : ℕ) (pers : bool) : tactic unit :=
 do
     (declaration.thm n l ty task_e) ← get_decl decl | failed,
+    trace ty, -- debug
     let new_n := new_name n,
     (do
         guard (is_equation ty),
@@ -78,6 +79,7 @@ meta def simp_coe_attr : user_attribute simp_lemmas :=
 {
     name      := `simp_coe,
     descr     := "attribute for coercion simplification",
+    after_set := some (λ n _ _, get_decl n >>= trace ∘ declaration.type), -- debug
     cache_cfg := {
         mk_cache     := monad.foldl simp_lemmas.add_simp simp_lemmas.mk,
         dependencies := [],

@@ -30,6 +30,6 @@ example : (an : ℂ) + bq = ((an + bq) : ℚ) := by {norm_coe1, refl}
 example : (((an : ℤ) : ℚ) : ℝ) + bn = (an + (bn : ℤ)) := by {norm_coe1, refl}
 
 example : (((((an : ℚ) : ℝ) * bq) + (cq : ℝ) ^ dn) : ℂ) = (an : ℂ) * (bq : ℝ) + cq ^ dn :=
-by {norm_coe1, simp_coe1, norm_coe1, refl}
+by {norm_coe1, refl}
 example : ((an : ℤ) : ℝ) < bq ∧ (cr : ℂ) ^ 2 = dz ↔ (an : ℚ) < bq ∧ ((cr ^ 2) : ℂ) = dz :=
 by {norm_coe1, refl}
