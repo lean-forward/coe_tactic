@@ -5,6 +5,7 @@ import norm_coe
     EQ
 -------- -/
 
+attribute [norm_coe] nat.cast_succ
 attribute [norm_coe] int.coe_nat_succ
 
 attribute [norm_coe] nat.cast_add
@@ -70,15 +71,25 @@ attribute [norm_coe] rat.cast_pow
 attribute [norm_coe] complex.of_real_pow
 attribute [norm_coe] complex.of_real_fpow
 
-attribute [simp_coe] nat.cast_bit0
-attribute [simp_coe] int.cast_bit0
-attribute [simp_coe] rat.cast_bit0
-attribute [simp_coe] complex.of_real_bit0
+attribute [norm_coe] nat.cast_bit0
+attribute [norm_coe] int.cast_bit0
+attribute [norm_coe] rat.cast_bit0
+attribute [norm_coe] complex.of_real_bit0
 
-attribute [simp_coe] nat.cast_bit1
-attribute [simp_coe] int.cast_bit1
-attribute [simp_coe] rat.cast_bit1
-attribute [simp_coe] complex.of_real_bit1
+attribute [norm_coe] nat.cast_bit1
+attribute [norm_coe] int.cast_bit1
+attribute [norm_coe] rat.cast_bit1
+attribute [norm_coe] complex.of_real_bit1
+
+/-
+attribute [norm_coe] int.cast_coe_nat
+attribute [norm_coe] int.cast_coe_nat'
+attribute [norm_coe] rat.cast_coe_nat
+attribute [norm_coe] rat.cast_coe_int
+attribute [norm_coe] complex.of_real_int_cast
+attribute [norm_coe] complex.of_real_nat_cast
+attribute [norm_coe] complex.of_real_rat_cast
+-/
 
 /- --------
     IFF

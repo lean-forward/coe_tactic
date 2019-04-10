@@ -12,8 +12,6 @@ attribute [simp_coe] int.coe_nat_one
 attribute [simp_coe] rat.cast_one
 attribute [simp_coe] complex.of_real_one
 
-attribute [simp_coe] nat.cast_succ
-
 attribute [simp_coe] nat.cast_id
 attribute [simp_coe] int.cast_id
 attribute [simp_coe] rat.cast_id
