@@ -19,8 +19,8 @@ meta def is_equation : expr → bool
 | (expr.pi n bi d b) := is_equation b
 | e                  := (expr.is_eq e).is_some
 
-meta def flip_equation : expr → expr
-| (expr.pi n bi d b)           := expr.pi n bi d (flip_equation b)
+meta def flip_equation_ty : expr → expr
+| (expr.pi n bi d b)           := expr.pi n bi d (flip_equation_ty b)
 | (expr.app (expr.app op x) y) := expr.app (expr.app op y) x
 | e                            := e
 
@@ -36,6 +36,12 @@ meta def lam_from_locals : expr → list expr → expr
     expr.lam m bi t (e'.abstract_local n)
 | e _ := e
 
+meta def flip_equation_val (e : expr) : tactic expr :=
+do
+    (locals, e1) ← mk_local_lams_whnf e,
+    e2 ← mk_eq_symm e1,
+    return $ expr.lambdas locals e2
+
 private meta def new_name : name → name
 | name.anonymous        := name.mk_string "norm_coe" name.anonymous
 | (name.mk_string s n)  := name.mk_string s (new_name n)
@@ -48,19 +54,18 @@ do
     let new_n := new_name n,
     (do
         guard (is_equation ty),
-        let new_ty := flip_equation ty,
+
         let e := task_e.get,
-
-        (locals, e') ← mk_local_lams_whnf e,
-        e'' ← mk_eq_symm e',
-        let new_e := expr.lambdas locals e'',
-
+        new_e ← flip_equation_val e,
         let task_new_e := task.pure new_e,
+
+        let new_ty := flip_equation_ty ty,
+        trace new_ty, -- debug
         add_decl (declaration.thm new_n l new_ty task_new_e)
     ) <|> add_decl (declaration.thm new_n l ty task_e)
 
 private meta def mk_cache : list name → tactic simp_lemmas :=
-monad.foldl (λ s, s.add_simp ∘ new_name) simp_lemmas.mk
+    monad.foldl (λ s, s.add_simp ∘ new_name) simp_lemmas.mk
 
 @[user_attribute]
 meta def norm_coe_attr : user_attribute simp_lemmas :=

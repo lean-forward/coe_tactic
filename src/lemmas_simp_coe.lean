@@ -9,6 +9,7 @@ attribute [simp_coe] complex.of_real_zero
 
 attribute [simp_coe] nat.cast_one
 attribute [simp_coe] int.coe_nat_one
+attribute [simp_coe] int.cast_one
 attribute [simp_coe] rat.cast_one
 attribute [simp_coe] complex.of_real_one
 
