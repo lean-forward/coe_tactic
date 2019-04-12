@@ -65,7 +65,7 @@ do
     ) <|> add_decl (declaration.thm new_n l ty task_e)
 
 private meta def mk_cache : list name → tactic simp_lemmas :=
-    monad.foldl (λ s, s.add_simp ∘ new_name) simp_lemmas.mk
+monad.foldl (λ s, s.add_simp ∘ new_name) simp_lemmas.mk
 
 @[user_attribute]
 meta def norm_coe_attr : user_attribute simp_lemmas :=
@@ -94,8 +94,8 @@ meta def simp_coe_attr : user_attribute simp_lemmas :=
 meta def post_aux : expr → tactic (expr × expr)
 | e@(expr.app (expr.app op x) y) :=
 do
-    `(@coe %%α %%δ %%coe1 %%xx) ← return x | failed,
-    `(@coe %%β %%γ %%coe2 %%yy) ← return y | failed,
+    `(@coe %%α %%δ %%coe1 %%xx) ← return x,
+    `(@coe %%β %%γ %%coe2 %%yy) ← return y,
     is_def_eq δ γ,
 
     (do
@@ -135,12 +135,7 @@ meta def post (e : expr) : tactic (expr × expr) :=
 do
     (tmp_e, pr1) ← post_aux e <|> prod.mk e <$> mk_eq_refl e,
 
-    ty ← infer_type e,
-    let r := match ty with
-    | (expr.sort zero) := `iff
-    | _                := `eq
-    end,
-
+    r ← mcond (is_prop e) (return `iff) (return `eq),
     s ← norm_coe_attr.get_cache,
     (new_e, pr2) ← s.rewrite tmp_e failed r,
 
@@ -185,7 +180,7 @@ open tactic interactive interactive.types
 open norm_coe
 
 meta def assumption_mod_coe : tactic unit :=
-    tactic.assumption_mod_coe
+tactic.assumption_mod_coe
 
 meta def norm_coe1 (loc : parse location) : tactic unit :=
 do
