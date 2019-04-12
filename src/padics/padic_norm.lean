@@ -25,7 +25,7 @@ if h : q ≠ 0 ∧ p ≠ 1
 then (multiplicity (p : ℤ) q.num).get
     (multiplicity.finite_int_iff.2 ⟨h.2, rat.num_ne_zero_of_ne_zero h.1⟩) -
   (multiplicity (p : ℤ) q.denom).get
-    (multiplicity.finite_int_iff.2 ⟨h.2, by {norm_coe1, apply rat.denom_ne_zero}⟩)
+    (multiplicity.finite_int_iff.2 ⟨h.2, by norm_coe_a using rat.denom_ne_zero q⟩)
 else 0
 
 lemma padic_val_rat_def (p : ℕ) [hp : p.prime] {q : ℚ} (hq : q ≠ 0) : padic_val_rat p q =
@@ -240,11 +240,11 @@ if hz : z = 0 then by simp [hz] else
 begin
   unfold padic_norm,
   rw [if_neg _],
-  refine fpow_le_one_of_nonpos _ _,
-  unfold ge, norm_coe1,
-  exact le_of_lt hp.gt_one, 
-  rw [padic_val_rat_of_int _ hp.ne_one hz, neg_nonpos],
-  norm_coe1,
+  { refine fpow_le_one_of_nonpos _ _,
+    { unfold ge, norm_coe1,
+      exact le_of_lt hp.gt_one },
+    { rw [padic_val_rat_of_int _ hp.ne_one hz, neg_nonpos],
+      norm_coe1 } },
   norm_coe_a
 end
 
@@ -264,14 +264,14 @@ else
     unfold padic_norm, split_ifs,
     apply le_max_iff.2,
     left,
-    have hpge1 : (↑p : ℚ) ≥ ↑(1 : ℕ), by {unfold ge, norm_coe_a using le_of_lt hp.gt_one},
-    apply fpow_le_of_le hpge1,
-    apply neg_le_neg,
-    have : padic_val_rat p q =
-            min (padic_val_rat p q) (padic_val_rat p r),
-      from (min_eq_left h).symm,
-    rw this,
-    apply min_le_padic_val_rat_add; assumption
+    apply fpow_le_of_le,
+    { norm_coe_a using le_of_lt hp.gt_one },
+    { apply neg_le_neg,
+      have : padic_val_rat p q =
+              min (padic_val_rat p q) (padic_val_rat p r),
+        from (min_eq_left h).symm,
+      rw this,
+      apply min_le_padic_val_rat_add; assumption }
   end
 
 protected theorem nonarchimedean {q r : ℚ} :
@@ -334,12 +334,12 @@ begin
   { simpa [padic_norm, hz] using fpow_nonneg_of_nonneg hpn _ },
   { apply fpow_le_of_le hp',
     apply neg_le_neg,
-    rw padic_val_rat_of_int _ hp.ne_one _, 
-    norm_coe1,
-    rw [←enat.coe_le_coe, enat.coe_get],
-    apply multiplicity.le_multiplicity_of_pow_dvd,
-      norm_coe_a using hd,
-      norm_coe_a using hz
+    rw padic_val_rat_of_int _ hp.ne_one _,
+    { norm_coe1,
+      rw [←enat.coe_le_coe, enat.coe_get],
+      apply multiplicity.le_multiplicity_of_pow_dvd,
+      norm_coe_a using hd },
+    { norm_coe_a using hz }
   }
 end
 
