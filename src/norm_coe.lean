@@ -210,7 +210,7 @@ match tgt with
     | e := do
         t ← infer_type e,
         assertv `this t e,
-        norm_coe1 hs (loc.ns [some `this, none]),
+        replace_at (derive {} simp_lemmas.mk) [e] tt,
         get_local `this >>= tactic.exact
     end
 end
