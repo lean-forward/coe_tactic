@@ -1,4 +1,4 @@
-import data.complex.basic
+import data.complex.basic data.nat.enat
 import norm_coe
 
 /- --------
@@ -41,16 +41,6 @@ attribute [norm_coe] complex.of_real_inv
 attribute [norm_coe] int.coe_nat_div
 attribute [norm_coe] rat.cast_div
 attribute [norm_coe] complex.of_real_div
-
-attribute [norm_coe] nat.cast_le
-attribute [norm_coe] int.coe_nat_le
-attribute [norm_coe] int.cast_le
-attribute [norm_coe] rat.cast_le
-
-attribute [norm_coe] nat.cast_lt
-attribute [norm_coe] int.coe_nat_lt
-attribute [norm_coe] int.cast_lt
-attribute [norm_coe] rat.cast_lt
 
 attribute [norm_coe] nat.cast_min
 attribute [norm_coe] int.cast_min
@@ -110,12 +100,23 @@ attribute [norm_coe] int.cast_ne_zero
 attribute [norm_coe] rat.cast_ne_zero
 attribute [norm_coe] complex.of_real_ne_zero
 
+attribute [norm_coe] nat.cast_le
+attribute [norm_coe] int.coe_nat_le
+attribute [norm_coe] int.cast_le
+attribute [norm_coe] rat.cast_le
+
+attribute [norm_coe] nat.cast_lt
+attribute [norm_coe] int.coe_nat_lt
+attribute [norm_coe] int.cast_lt
+attribute [norm_coe] rat.cast_lt
+
 attribute [norm_coe] nat.cast_pos
 attribute [norm_coe] int.coe_nat_pos
 attribute [norm_coe] int.cast_pos
 attribute [norm_coe] rat.cast_pos
 
 attribute [norm_coe] nat.cast_nonneg
+attribute [norm_coe] int.coe_nat_nonneg
 attribute [norm_coe] int.cast_nonneg
 attribute [norm_coe] rat.cast_nonneg
 
@@ -130,5 +131,10 @@ attribute [norm_coe] int.coe_nat_inj'
 attribute [norm_coe] int.cast_inj
 attribute [norm_coe] rat.cast_inj
 attribute [norm_coe] complex.of_real_inj
+
+attribute [norm_coe] int.coe_nat_dvd
+attribute [norm_coe] enat.coe_le_coe
+attribute [norm_coe] enat.coe_lt_coe
+--attribute [norm_coe] enat.coe_get
 
 run_cmd (norm_coe.norm_coe_attr.get_cache >>= tactic.trace)

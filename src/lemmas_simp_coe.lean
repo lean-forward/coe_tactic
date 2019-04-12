@@ -1,4 +1,4 @@
-import data.complex.basic
+import data.complex.basic data.nat.enat
 import norm_coe
 
 attribute [simp_coe] nat.cast_zero
@@ -24,3 +24,5 @@ attribute [simp_coe] rat.cast_coe_int
 attribute [simp_coe] complex.of_real_int_cast
 attribute [simp_coe] complex.of_real_nat_cast
 attribute [simp_coe] complex.of_real_rat_cast
+
+attribute [simp_coe] enat.coe_get
