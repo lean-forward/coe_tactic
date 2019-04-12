@@ -187,6 +187,7 @@ do
     ns ← loc.get_locals,
     tt ← replace_at (derive {} simp_lemmas.mk) ns loc.include_goal
         | fail "norm_coe failed to simplify",
+    try tactic.reflexivity,
     when loc.include_goal $ try tactic.triv,
     when (¬ ns.empty) $ try tactic.contradiction
 
