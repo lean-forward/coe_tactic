@@ -110,6 +110,13 @@ attribute [norm_coe] int.coe_nat_lt
 attribute [norm_coe] int.cast_lt
 attribute [norm_coe] rat.cast_lt
 
+@[norm_coe]
+lemma ge_from_le {α} [has_le α] : ∀ (x y : α), x ≥ y ↔ y ≤ x :=
+by simp
+@[norm_coe]
+lemma gt_from_lt {α} [has_lt α] : ∀ (x y : α), x > y ↔ y < x :=
+by simp
+
 attribute [norm_coe] nat.cast_pos
 attribute [norm_coe] int.coe_nat_pos
 attribute [norm_coe] int.cast_pos

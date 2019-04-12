@@ -161,10 +161,10 @@ end norm_coe
 namespace tactic
 open tactic
 open norm_coe
-
+#print simp_config
 meta def assumption_mod_coe : tactic unit :=
 do {
-    let cfg : simp_config := {fail_if_unchanged := ff},
+    let cfg : simp_config := {fail_if_unchanged := ff, canonize_instances := ff, canonize_proofs := ff, proj := ff},
     ctx ← local_context,
     _ ← replace_at (derive cfg simp_lemmas.mk) ctx tt,
     assumption
@@ -187,6 +187,7 @@ do
     ns ← loc.get_locals,
     tt ← replace_at (derive {} simp_lemmas.mk) ns loc.include_goal
         | fail "norm_coe failed to simplify",
+    try tactic.reflexivity,
     when loc.include_goal $ try tactic.triv,
     when (¬ ns.empty) $ try tactic.contradiction
 
@@ -210,7 +211,7 @@ match tgt with
     | e := do
         t ← infer_type e,
         assertv `this t e,
-        norm_coe1 hs (loc.ns [some `this, none]),
+        replace_at (derive {} simp_lemmas.mk) [e] tt,
         get_local `this >>= tactic.exact
     end
 end

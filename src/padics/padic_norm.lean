@@ -25,12 +25,12 @@ if h : q ≠ 0 ∧ p ≠ 1
 then (multiplicity (p : ℤ) q.num).get
     (multiplicity.finite_int_iff.2 ⟨h.2, rat.num_ne_zero_of_ne_zero h.1⟩) -
   (multiplicity (p : ℤ) q.denom).get
-    (multiplicity.finite_int_iff.2 ⟨h.2, by {norm_coe1, apply rat.denom_ne_zero}⟩)
+    (multiplicity.finite_int_iff.2 ⟨h.2, by norm_coe_a using rat.denom_ne_zero _⟩)
 else 0
 
 lemma padic_val_rat_def (p : ℕ) [hp : p.prime] {q : ℚ} (hq : q ≠ 0) : padic_val_rat p q =
   (multiplicity (p : ℤ) q.num).get (finite_int_iff.2 ⟨hp.ne_one, rat.num_ne_zero_of_ne_zero hq⟩) -
-  (multiplicity (p : ℤ) q.denom).get (finite_int_iff.2 ⟨hp.ne_one, by {norm_coe1, apply rat.denom_ne_zero}⟩) :=
+  (multiplicity (p : ℤ) q.denom).get (finite_int_iff.2 ⟨hp.ne_one, by norm_coe_a using rat.denom_ne_zero _⟩) :=
 dif_pos ⟨hq, hp.ne_one⟩
 
 namespace padic_val_rat
@@ -84,7 +84,7 @@ by rw [padic_val_rat, dif_pos];
 protected lemma mul {q r : ℚ} (hq : q ≠ 0) (hr : r ≠ 0) :
   padic_val_rat p (q * r) = padic_val_rat p q + padic_val_rat p r :=
 have q*r = (q.num * r.num) /. (↑q.denom * ↑r.denom),
-  by {rw rat.mul_num_denom, norm_coe1, refl},
+  by {rw rat.mul_num_denom, norm_coe1},
 have hq' : q.num /. q.denom ≠ 0, by rw ← rat.num_denom q; exact hq,
 have hr' : r.num /. r.denom ≠ 0, by rw ← rat.num_denom r; exact hr,
 have hp' : _root_.prime (p : ℤ), from nat.prime_iff_prime_int.1 p_prime,
@@ -137,9 +137,9 @@ theorem le_padic_val_rat_add_of_le {q r : ℚ}
   (h : padic_val_rat p q ≤ padic_val_rat p r) :
   padic_val_rat p q ≤ padic_val_rat p (q + r) :=
 have hqn : q.num ≠ 0, from rat.num_ne_zero_of_ne_zero hq,
-have hqd : (q.denom : ℤ) ≠ 0, by {norm_coe1, apply rat.denom_ne_zero},
+have hqd : (q.denom : ℤ) ≠ 0, by norm_coe_a using rat.denom_ne_zero _,
 have hrn : r.num ≠ 0, from rat.num_ne_zero_of_ne_zero hr,
-have hrd : (r.denom : ℤ) ≠ 0, by {norm_coe1, apply rat.denom_ne_zero},
+have hrd : (r.denom : ℤ) ≠ 0, by norm_coe_a using rat.denom_ne_zero _,
 have hqdv : q.num /. q.denom ≠ 0, from rat.mk_ne_zero_of_ne_zero hqn hqd,
 have hrdv : r.num /. r.denom ≠ 0, from rat.mk_ne_zero_of_ne_zero hrn hrd,
 have hqreq : q + r = (((q.num * r.denom + q.denom * r.num : ℤ)) /. (↑q.denom * ↑r.denom : ℤ)),
@@ -217,7 +217,6 @@ else
   begin
     unfold padic_norm; split_ifs,
     apply fpow_nonneg_of_nonneg,
-    unfold ge,
     norm_coe1
   end
 
@@ -240,11 +239,10 @@ if hz : z = 0 then by simp [hz] else
 begin
   unfold padic_norm,
   rw [if_neg _],
-  refine fpow_le_one_of_nonpos _ _,
-  unfold ge, norm_coe1,
-  exact le_of_lt hp.gt_one, 
-  rw [padic_val_rat_of_int _ hp.ne_one hz, neg_nonpos],
-  norm_coe1,
+  { refine fpow_le_one_of_nonpos _ _,
+    { norm_coe_a using le_of_lt hp.gt_one },
+    { rw [padic_val_rat_of_int _ hp.ne_one hz, neg_nonpos],
+      norm_coe1 } },
   norm_coe_a
 end
 
@@ -264,14 +262,14 @@ else
     unfold padic_norm, split_ifs,
     apply le_max_iff.2,
     left,
-    have hpge1 : (↑p : ℚ) ≥ ↑(1 : ℕ), by {unfold ge, norm_coe_a using le_of_lt hp.gt_one},
-    apply fpow_le_of_le hpge1,
-    apply neg_le_neg,
-    have : padic_val_rat p q =
-            min (padic_val_rat p q) (padic_val_rat p r),
-      from (min_eq_left h).symm,
-    rw this,
-    apply min_le_padic_val_rat_add; assumption
+    apply fpow_le_of_le,
+    { norm_coe_a using le_of_lt hp.gt_one },
+    { apply neg_le_neg,
+      have : padic_val_rat p q =
+              min (padic_val_rat p q) (padic_val_rat p r),
+        from (min_eq_left h).symm,
+      rw this,
+      apply min_le_padic_val_rat_add; assumption }
   end
 
 protected theorem nonarchimedean {q r : ℚ} :
@@ -327,19 +325,19 @@ instance : is_absolute_value (padic_norm p) :=
   abv_mul := padic_norm.mul p }
 
 lemma le_of_dvd {n : ℕ} {z : ℤ} (hd : ↑(p^n) ∣ z) : padic_norm p z ≤ ↑p ^ (-n : ℤ) :=
-have hp' : (↑p : ℚ) ≥ 1, from show ↑p ≥ ↑(1 : ℕ), by {unfold ge, norm_coe_a using (le_of_lt hp.gt_one)},
+have hp' : (↑p : ℚ) ≥ 1, from show ↑p ≥ ↑(1 : ℕ), by norm_coe_a using (le_of_lt hp.gt_one),
 have hpn : (↑p : ℚ) ≥ 0, from le_trans zero_le_one hp',
 begin
   unfold padic_norm, split_ifs with hz hz,
   { simpa [padic_norm, hz] using fpow_nonneg_of_nonneg hpn _ },
   { apply fpow_le_of_le hp',
     apply neg_le_neg,
-    rw padic_val_rat_of_int _ hp.ne_one _, 
-    norm_coe1,
-    rw [←enat.coe_le_coe, enat.coe_get],
-    apply multiplicity.le_multiplicity_of_pow_dvd,
-      norm_coe_a using hd,
-      norm_coe_a using hz
+    rw padic_val_rat_of_int _ hp.ne_one _,
+    { norm_coe1,
+      rw [←enat.coe_le_coe, enat.coe_get],
+      apply multiplicity.le_multiplicity_of_pow_dvd,
+      norm_coe_a using hd },
+    { norm_coe_a using hz }
   }
 end
 
