@@ -217,7 +217,6 @@ else
   begin
     unfold padic_norm; split_ifs,
     apply fpow_nonneg_of_nonneg,
-    unfold ge,
     norm_coe1
   end
 
@@ -241,8 +240,7 @@ begin
   unfold padic_norm,
   rw [if_neg _],
   { refine fpow_le_one_of_nonpos _ _,
-    { unfold ge, norm_coe1,
-      exact le_of_lt hp.gt_one },
+    { norm_coe_a using le_of_lt hp.gt_one },
     { rw [padic_val_rat_of_int _ hp.ne_one hz, neg_nonpos],
       norm_coe1 } },
   norm_coe_a
@@ -327,7 +325,7 @@ instance : is_absolute_value (padic_norm p) :=
   abv_mul := padic_norm.mul p }
 
 lemma le_of_dvd {n : ℕ} {z : ℤ} (hd : ↑(p^n) ∣ z) : padic_norm p z ≤ ↑p ^ (-n : ℤ) :=
-have hp' : (↑p : ℚ) ≥ 1, from show ↑p ≥ ↑(1 : ℕ), by {unfold ge, norm_coe_a using (le_of_lt hp.gt_one)},
+have hp' : (↑p : ℚ) ≥ 1, from show ↑p ≥ ↑(1 : ℕ), by norm_coe_a using (le_of_lt hp.gt_one),
 have hpn : (↑p : ℚ) ≥ 0, from le_trans zero_le_one hp',
 begin
   unfold padic_norm, split_ifs with hz hz,
