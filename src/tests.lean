@@ -37,5 +37,9 @@ by {norm_coe1, refl}
 example : (an : ℤ) = 1 → an = 1 := by {intro, assumption_mod_coe}
 example : (an : ℤ) < 5 → an < 5 := by {intro, assumption_mod_coe}
 example : an < 5 → (an : ℤ) < 5 := by {intro, assumption_mod_coe}
+example : (an + 5) < 10 → (an : ℤ) + 5 < 10 := by {intro, assumption_mod_coe}
+example : (an : ℤ) + 5 < 10 → (an + 5) < 10 := by {intro, assumption_mod_coe}
+example : ((an + 5 : ℕ) : ℤ) < 10 → an + 5 < 10 := by {intro, assumption_mod_coe}
+example : an + 5 < 10 → ((an + 5 : ℕ) : ℤ) < 10 := by {intro, assumption_mod_coe}
 
 example : 1 = (az : ℚ) / (bz : ℚ) ↔ 1 = (az : ℝ) / (bz : ℝ) := sorry
