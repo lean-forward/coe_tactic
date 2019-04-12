@@ -161,10 +161,10 @@ end norm_coe
 namespace tactic
 open tactic
 open norm_coe
-
+#print simp_config
 meta def assumption_mod_coe : tactic unit :=
 do {
-    let cfg : simp_config := {fail_if_unchanged := ff},
+    let cfg : simp_config := {fail_if_unchanged := ff, canonize_instances := ff, canonize_proofs := ff, proj := ff},
     ctx ← local_context,
     _ ← replace_at (derive cfg simp_lemmas.mk) ctx tt,
     assumption

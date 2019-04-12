@@ -25,7 +25,7 @@ if h : q ≠ 0 ∧ p ≠ 1
 then (multiplicity (p : ℤ) q.num).get
     (multiplicity.finite_int_iff.2 ⟨h.2, rat.num_ne_zero_of_ne_zero h.1⟩) -
   (multiplicity (p : ℤ) q.denom).get
-    (multiplicity.finite_int_iff.2 ⟨h.2, by norm_coe_a using rat.denom_ne_zero q⟩)
+    (multiplicity.finite_int_iff.2 ⟨h.2, by norm_coe_a using rat.denom_ne_zero _⟩)
 else 0
 
 lemma padic_val_rat_def (p : ℕ) [hp : p.prime] {q : ℚ} (hq : q ≠ 0) : padic_val_rat p q =
