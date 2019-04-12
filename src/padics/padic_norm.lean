@@ -30,7 +30,7 @@ else 0
 
 lemma padic_val_rat_def (p : ℕ) [hp : p.prime] {q : ℚ} (hq : q ≠ 0) : padic_val_rat p q =
   (multiplicity (p : ℤ) q.num).get (finite_int_iff.2 ⟨hp.ne_one, rat.num_ne_zero_of_ne_zero hq⟩) -
-  (multiplicity (p : ℤ) q.denom).get (finite_int_iff.2 ⟨hp.ne_one, by {norm_coe1, apply rat.denom_ne_zero}⟩) :=
+  (multiplicity (p : ℤ) q.denom).get (finite_int_iff.2 ⟨hp.ne_one, by norm_coe_a using rat.denom_ne_zero _⟩) :=
 dif_pos ⟨hq, hp.ne_one⟩
 
 namespace padic_val_rat
@@ -84,7 +84,7 @@ by rw [padic_val_rat, dif_pos];
 protected lemma mul {q r : ℚ} (hq : q ≠ 0) (hr : r ≠ 0) :
   padic_val_rat p (q * r) = padic_val_rat p q + padic_val_rat p r :=
 have q*r = (q.num * r.num) /. (↑q.denom * ↑r.denom),
-  by {rw rat.mul_num_denom, norm_coe1, refl},
+  by {rw rat.mul_num_denom, norm_coe1},
 have hq' : q.num /. q.denom ≠ 0, by rw ← rat.num_denom q; exact hq,
 have hr' : r.num /. r.denom ≠ 0, by rw ← rat.num_denom r; exact hr,
 have hp' : _root_.prime (p : ℤ), from nat.prime_iff_prime_int.1 p_prime,
@@ -137,9 +137,9 @@ theorem le_padic_val_rat_add_of_le {q r : ℚ}
   (h : padic_val_rat p q ≤ padic_val_rat p r) :
   padic_val_rat p q ≤ padic_val_rat p (q + r) :=
 have hqn : q.num ≠ 0, from rat.num_ne_zero_of_ne_zero hq,
-have hqd : (q.denom : ℤ) ≠ 0, by {norm_coe1, apply rat.denom_ne_zero},
+have hqd : (q.denom : ℤ) ≠ 0, by norm_coe_a using rat.denom_ne_zero _,
 have hrn : r.num ≠ 0, from rat.num_ne_zero_of_ne_zero hr,
-have hrd : (r.denom : ℤ) ≠ 0, by {norm_coe1, apply rat.denom_ne_zero},
+have hrd : (r.denom : ℤ) ≠ 0, by norm_coe_a using rat.denom_ne_zero _,
 have hqdv : q.num /. q.denom ≠ 0, from rat.mk_ne_zero_of_ne_zero hqn hqd,
 have hrdv : r.num /. r.denom ≠ 0, from rat.mk_ne_zero_of_ne_zero hrn hrd,
 have hqreq : q + r = (((q.num * r.denom + q.denom * r.num : ℤ)) /. (↑q.denom * ↑r.denom : ℤ)),
