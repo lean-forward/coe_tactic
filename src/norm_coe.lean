@@ -2,7 +2,7 @@
 Normalizing coercions in arithmetic expressions
 -/
 
-import tactic.basic
+import tactic.basic tactic.interactive tactic.converter.interactive
 
 namespace tactic
 
@@ -131,12 +131,12 @@ do
     )
 | _ := failed
 
-meta def post (e : expr) : tactic (expr × expr) :=
+meta def post (_ : unit) (s : simp_lemmas) (e : expr) : tactic (unit × expr × expr) :=
 do
     (tmp_e, pr1) ← post_aux e <|> prod.mk e <$> mk_eq_refl e,
 
+    s ← s.join <$> norm_coe_attr.get_cache,
     r ← mcond (is_prop e) (return `iff) (return `eq),
-    s ← norm_coe_attr.get_cache,
     (new_e, pr2) ← s.rewrite tmp_e failed r,
 
     pr2 ← match r with
@@ -145,16 +145,14 @@ do
     end,
 
     pr ← mk_eq_trans pr1 pr2,
-    return (new_e, pr)
-
-meta def derive1 (_ : unit) (e : expr) : tactic (unit × expr × expr) :=
-do
-    (new_e, pr) ← post e,
     return ((), new_e, pr)
 
-meta def derive (cfg : simp_config := {}) (e : expr) : tactic (expr × expr) :=
+meta def derive (cfg : simp_config := {}) (s : simp_lemmas) (e : expr) : tactic (expr × expr) :=
 do
-    ((), new_e, pr) ← simplify_bottom_up () derive1 e,
+    ((), new_e, pr) ← ext_simplify_core () cfg simp_lemmas.mk (λ _, failed)
+        (λ a _ _ _ e, failed)
+        (λ a _ _ _ e, do (new_a, new_e, pr) ← post a s e, guard (¬ new_e =ₐ e), return (new_a, new_e, some pr, tt))
+        `eq e,
     return (new_e, pr)
 
 end norm_coe
@@ -168,7 +166,7 @@ meta def assumption_mod_coe : tactic unit :=
 do {
     let cfg : simp_config := {fail_if_unchanged := ff},
     ctx ← local_context,
-    _ ← replace_at (derive cfg) ctx tt,
+    _ ← replace_at (derive cfg simp_lemmas.mk) ctx tt,
     assumption
 } <|> fail "assumption modulo coercion failed"
 
@@ -176,19 +174,46 @@ end tactic
 
 
 namespace tactic.interactive
-open tactic interactive interactive.types
+open tactic interactive interactive.types expr lean.parser
 open norm_coe
+
+local postfix `?`:9001 := optional
 
 meta def assumption_mod_coe : tactic unit :=
 tactic.assumption_mod_coe
 
-meta def norm_coe1 (loc : parse location) : tactic unit :=
+meta def norm_coe1 (hs : parse simp_arg_list) (loc : parse location) : tactic unit :=
 do
     ns ← loc.get_locals,
-    tt ← replace_at derive ns loc.include_goal
+    tt ← replace_at (derive {} simp_lemmas.mk) ns loc.include_goal
         | fail "norm_coe failed to simplify",
     when loc.include_goal $ try tactic.triv,
     when (¬ ns.empty) $ try tactic.contradiction
+
+meta def norm_coe_a (hs : parse simp_arg_list) (tgt : parse (tk "using" *> texpr)?) : tactic unit :=
+match tgt with
+| none := norm_coe1 hs (loc.ns [none]) >> assumption
+| some e := do
+    e ← i_to_expr e <|> do {
+        ty ← target,
+        e ← i_to_expr_strict ``(%%e : %%ty),
+        pty ← pp ty, ptgt ← pp e,
+        fail ("norm_coe_a failed, 'using' expression type not directly " ++
+        "inferrable. Try:\n\nnorm_coe_a ... using\nshow " ++
+        to_fmt pty ++ ",\nfrom " ++ ptgt : format)
+    },
+    match e with
+    | local_const _ lc _ _ := do
+        e ← get_local lc,
+        replace_at (derive {} simp_lemmas.mk) [e] tt,
+        get_local lc >>= tactic.exact
+    | e := do
+        t ← infer_type e,
+        assertv `this t e,
+        norm_coe1 hs (loc.ns [some `this, none]),
+        get_local `this >>= tactic.exact
+    end
+end
 
 meta def simp_coe1 (loc : parse location) : tactic unit :=
 do
@@ -200,3 +225,11 @@ do
     when (¬ ns.empty) $ try tactic.contradiction
 
 end tactic.interactive
+
+namespace conv.interactive
+open conv tactic tactic.interactive interactive interactive.types
+open norm_coe (derive)
+
+meta def norm_coe1 : conv unit := replace_lhs (derive {} simp_lemmas.mk)
+
+end conv.interactive
