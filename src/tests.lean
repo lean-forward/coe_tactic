@@ -37,7 +37,6 @@ by norm_coe1
 example : (an : ℤ) = 1 → an = 1 := by {intro, assumption_mod_coe}
 example : (an : ℤ) < 5 → an < 5 := by {intro, assumption_mod_coe}
 example : an < 5 → (an : ℤ) < 5 := by {intro, assumption_mod_coe}
-<<<<<<< Updated upstream
 example : (an + 5) < 10 → (an : ℤ) + 5 < 10 := by {intro, assumption_mod_coe}
 example : (an : ℤ) + 5 < 10 → (an + 5) < 10 := by {intro, assumption_mod_coe}
 example : ((an + 5 : ℕ) : ℤ) < 10 → an + 5 < 10 := by {intro, assumption_mod_coe}
@@ -53,8 +52,6 @@ begin
     norm_coe1,
     sorry
 end
-=======
->>>>>>> Stashed changes
 
 example (h : (cz : ℚ) = az / bz) : (cz : ℝ) = az / bz :=
 by sorry
