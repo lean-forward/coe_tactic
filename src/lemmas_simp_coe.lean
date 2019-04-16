@@ -25,4 +25,6 @@ attribute [simp_coe] complex.of_real_int_cast
 attribute [simp_coe] complex.of_real_nat_cast
 attribute [simp_coe] complex.of_real_rat_cast
 
+attribute [simp_coe] enat.coe_zero
+attribute [simp_coe] enat.coe_one
 attribute [simp_coe] enat.coe_get

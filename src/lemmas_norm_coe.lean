@@ -82,6 +82,10 @@ lemma int.cast_coe_nat_one {α} [add_monoid α] [has_one α] [has_neg α] :
     (((1 : ℕ) : ℤ) : α) = (1 : α) :=
 by simp
 
+attribute [norm_coe] enat.top_add
+attribute [norm_coe] enat.add_top
+attribute [norm_coe] enat.coe_add
+
 /- --------
     IFF
  -------- -/
@@ -142,6 +146,8 @@ attribute [norm_coe] complex.of_real_inj
 attribute [norm_coe] int.coe_nat_dvd
 attribute [norm_coe] enat.coe_le_coe
 attribute [norm_coe] enat.coe_lt_coe
---attribute [norm_coe] enat.coe_get
+
+attribute [norm_coe] rat.zero_iff_num_zero
+attribute [norm_coe] rat.num_ne_zero_of_ne_zero
 
 run_cmd (norm_coe.norm_coe_attr.get_cache >>= tactic.trace)
