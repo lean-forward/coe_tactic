@@ -1,5 +1,5 @@
 /-
-Normalizing coercions in arithmetic expressions
+Normalizing casts in arithmetic expressions
 -/
 
 import tactic.basic tactic.interactive tactic.converter.interactive
@@ -12,7 +12,7 @@ meta def mk_instance_bis (e : expr) : tactic expr :=
 end tactic
 
 
-namespace norm_coe
+namespace norm_cast
 open tactic
 
 meta def is_equation : expr → bool
@@ -43,7 +43,7 @@ do
     return $ expr.lambdas locals e2
 
 private meta def new_name : name → name
-| name.anonymous        := name.mk_string "norm_coe" name.anonymous
+| name.anonymous        := name.mk_string "norm_cast" name.anonymous
 | (name.mk_string s n)  := name.mk_string s (new_name n)
 | (name.mk_numeral i n) := name.mk_numeral i (new_name n)
 
@@ -68,10 +68,10 @@ private meta def mk_cache : list name → tactic simp_lemmas :=
 monad.foldl (λ s, s.add_simp ∘ new_name) simp_lemmas.mk
 
 @[user_attribute]
-meta def norm_coe_attr : user_attribute simp_lemmas :=
+meta def norm_cast_attr : user_attribute simp_lemmas :=
 {
-    name      := `norm_coe,
-    descr     := "attribute for coercion normalization",
+    name      := `norm_cast,
+    descr     := "attribute for cast normalization",
     after_set := some after_set,
     cache_cfg := {
         mk_cache     := mk_cache,
@@ -80,10 +80,10 @@ meta def norm_coe_attr : user_attribute simp_lemmas :=
 }
 
 @[user_attribute]
-meta def simp_coe_attr : user_attribute simp_lemmas :=
+meta def simp_cast_attr : user_attribute simp_lemmas :=
 {
-    name      := `simp_coe,
-    descr     := "attribute for coercion simplification",
+    name      := `simp_cast,
+    descr     := "attribute for cast simplification",
     after_set := some (λ n _ _, get_decl n >>= trace ∘ declaration.type), -- debug
     cache_cfg := {
         mk_cache     := monad.foldl simp_lemmas.add_simp simp_lemmas.mk,
@@ -107,7 +107,7 @@ do
         new_x ← to_expr ``(@coe %%β %%δ %%coe2 (@coe %%α %%β %%coe3 %%xx)),
         let new_e := expr.app (expr.app op new_x) y,
 
-        s ← simp_coe_attr.get_cache,
+        s ← simp_cast_attr.get_cache,
         (x', eq_x) ← s.rewrite new_x,
         eq_x ← mk_eq_symm eq_x,
 
@@ -119,7 +119,7 @@ do
         new_y ← to_expr ``(@coe %%α %%δ %%coe1 (@coe %%β %%α %%coe3 %%yy)),
         let new_e := expr.app (expr.app op x) new_y,
 
-        s ← simp_coe_attr.get_cache,
+        s ← simp_cast_attr.get_cache,
         (y', eq_y) ← s.rewrite new_y,
         eq_y ← mk_eq_symm eq_y,
 
@@ -135,7 +135,7 @@ meta def post (_ : unit) (s : simp_lemmas) (e : expr) : tactic (unit × expr × 
 do
     (tmp_e, pr1) ← post_aux e <|> prod.mk e <$> mk_eq_refl e,
 
-    s ← s.join <$> norm_coe_attr.get_cache,
+    s ← s.join <$> norm_cast_attr.get_cache,
     r ← mcond (is_prop e) (return `iff) (return `eq),
 
     (new_e, pr2) ← s.rewrite tmp_e failed r,
@@ -154,57 +154,57 @@ do
         (λ a _ _ _ e, failed)
         (λ a _ _ _ e, do (new_a, new_e, pr) ← post a s e, guard (¬ new_e =ₐ e), return (new_a, new_e, some pr, tt))
         `eq e,
-    s ← simp_coe_attr.get_cache,
+    s ← simp_cast_attr.get_cache,
     (e2, pr2) ← simplify s [] e1 {fail_if_unchanged := ff},
     pr ← mk_eq_trans pr1 pr2,
     return (e2, pr)
 
-end norm_coe
+end norm_cast
 
 
 namespace tactic
 open tactic
-open norm_coe
-#print simp_config
-meta def assumption_mod_coe : tactic unit :=
+open norm_cast
+
+meta def assumption_mod_cast : tactic unit :=
 do {
     let cfg : simp_config := {fail_if_unchanged := ff, canonize_instances := ff, canonize_proofs := ff, proj := ff},
     ctx ← local_context,
     _ ← replace_at (derive cfg simp_lemmas.mk) ctx tt,
     assumption
-} <|> fail "assumption modulo coercion failed"
+} <|> fail "assumption modulo casting failed"
 
 end tactic
 
 
 namespace tactic.interactive
 open tactic interactive interactive.types expr lean.parser
-open norm_coe
+open norm_cast
 
 local postfix `?`:9001 := optional
 
-meta def assumption_mod_coe : tactic unit :=
-tactic.assumption_mod_coe
+meta def assumption_mod_cast : tactic unit :=
+tactic.assumption_mod_cast
 
-meta def norm_coe1 (hs : parse simp_arg_list) (loc : parse location) : tactic unit :=
+meta def norm_cast1 (hs : parse simp_arg_list) (loc : parse location) : tactic unit :=
 do
     ns ← loc.get_locals,
     tt ← replace_at (derive {} simp_lemmas.mk) ns loc.include_goal
-        | fail "norm_coe failed to simplify",
+        | fail "norm_cast failed to simplify",
     try tactic.reflexivity,
     when loc.include_goal $ try tactic.triv,
     when (¬ ns.empty) $ try tactic.contradiction
 
-meta def norm_coe_a (hs : parse simp_arg_list) (tgt : parse (tk "using" *> texpr)?) : tactic unit :=
+meta def norm_cast_a (hs : parse simp_arg_list) (tgt : parse (tk "using" *> texpr)?) : tactic unit :=
 match tgt with
-| none := norm_coe1 hs (loc.ns [none]) >> assumption
+| none := norm_cast1 hs (loc.ns [none]) >> assumption
 | some e := do
     e ← i_to_expr e <|> do {
         ty ← target,
         e ← i_to_expr_strict ``(%%e : %%ty),
         pty ← pp ty, ptgt ← pp e,
-        fail ("norm_coe_a failed, 'using' expression type not directly " ++
-        "inferrable. Try:\n\nnorm_coe_a ... using\nshow " ++
+        fail ("norm_cast_a failed, 'using' expression type not directly " ++
+        "inferrable. Try:\n\nnorm_cast_a ... using\nshow " ++
         to_fmt pty ++ ",\nfrom " ++ ptgt : format)
     },
     match e with
@@ -220,12 +220,12 @@ match tgt with
     end
 end
 
-meta def simp_coe1 (loc : parse location) : tactic unit :=
+meta def simp_cast1 (loc : parse location) : tactic unit :=
 do
-    s ← simp_coe_attr.get_cache,
+    s ← simp_cast_attr.get_cache,
     ns ← loc.get_locals,
     tt ← replace_at (simplify s []) ns loc.include_goal
-        | fail "simp_coe failed to simplify",
+        | fail "simp_cast failed to simplify",
     when loc.include_goal $ try tactic.triv,
     when (¬ ns.empty) $ try tactic.contradiction
 
@@ -233,8 +233,8 @@ end tactic.interactive
 
 namespace conv.interactive
 open conv tactic tactic.interactive interactive interactive.types
-open norm_coe (derive)
+open norm_cast (derive)
 
-meta def norm_coe1 : conv unit := replace_lhs (derive {} simp_lemmas.mk)
+meta def norm_cast1 : conv unit := replace_lhs (derive {} simp_lemmas.mk)
 
 end conv.interactive
