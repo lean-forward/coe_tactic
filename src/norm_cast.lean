@@ -91,6 +91,13 @@ meta def simp_cast_attr : user_attribute simp_lemmas :=
     }
 }
 
+private meta def aux1 (e new_e : expr) : tactic expr :=
+do
+    s ← simp_cast_attr.get_cache,
+    (e', pr) ← s.rewrite new_e,
+    is_def_eq e e',
+    mk_eq_symm pr
+
 private meta def heur (_ : unit) (_ : simp_lemmas) (e : expr) : tactic (unit × expr × expr) :=
 match e with
 | (expr.app (expr.app op x) y) :=
@@ -107,11 +114,7 @@ do
         new_x ← to_expr ``(@coe %%β %%δ %%coe2 (@coe %%α %%β %%coe3 %%xx)),
         let new_e := expr.app (expr.app op new_x) y,
 
-        -- TODO write an a aux function for this
-        s ← simp_cast_attr.get_cache,
-        (x', eq_x) ← s.rewrite new_x,
-        eq_x ← mk_eq_symm eq_x,
-        --
+        eq_x ← aux1 x new_x,
 
         pr ← mk_congr_arg op eq_x,
         pr ← mk_congr_fun pr y,
@@ -121,9 +124,7 @@ do
         new_y ← to_expr ``(@coe %%α %%δ %%coe1 (@coe %%β %%α %%coe3 %%yy)),
         let new_e := expr.app (expr.app op x) new_y,
 
-        s ← simp_cast_attr.get_cache,
-        (y', eq_y) ← s.rewrite new_y,
-        eq_y ← mk_eq_symm eq_y,
+        eq_y ← aux1 y new_y,
 
         pr ← mk_congr_arg (expr.app op x) eq_y,
         return ((), new_e, pr)
@@ -153,9 +154,7 @@ do
     coe_nat ← to_expr ``(has_lift_t ℕ %%α) >>= mk_instance_bis,
     new_e ← to_expr ``(@coe ℕ %%α %%coe_nat 1),
 
-    s ← simp_cast_attr.get_cache,
-    (e', pr) ← s.rewrite new_e,
-    pr ← mk_eq_symm pr,
+    pr ← aux1 e new_e,
 
     return ((), new_e, pr)
 | _                       := failed
