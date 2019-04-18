@@ -8,7 +8,7 @@ Define the p-adic valuation on ℤ and ℚ, and the p-adic norm on ℚ
 
 import data.rat algebra.gcd_domain algebra.field_power
 import ring_theory.multiplicity tactic.ring
-import norm_cast lemmas_simp_cast lemmas_norm_cast
+import norm_cast lemmas_norm_cast
 
 universe u
 

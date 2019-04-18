@@ -91,29 +91,31 @@ meta def simp_cast_attr : user_attribute simp_lemmas :=
     }
 }
 
-meta def post_aux : expr → tactic (expr × expr)
-| e@(expr.app (expr.app op x) y) :=
+private meta def heur (_ : unit) (_ : simp_lemmas) (e : expr) : tactic (unit × expr × expr) :=
+match e with
+| (expr.app (expr.app op x) y) :=
 do
     `(@coe %%α %%δ %%coe1 %%xx) ← return x,
     `(@coe %%β %%γ %%coe2 %%yy) ← return y,
     is_def_eq δ γ,
 
+    b ← (is_def_eq α β >> return ff) <|> return tt,
+    guard b,
+
     (do
-        is_def_eq α β,
-        pr ← mk_eq_refl e,
-        return (e, pr)
-    ) <|> (do
         coe3 ← mk_app `has_lift_t [α, β] >>= mk_instance_bis,
         new_x ← to_expr ``(@coe %%β %%δ %%coe2 (@coe %%α %%β %%coe3 %%xx)),
         let new_e := expr.app (expr.app op new_x) y,
 
+        -- TODO write an a aux function for this
         s ← simp_cast_attr.get_cache,
         (x', eq_x) ← s.rewrite new_x,
         eq_x ← mk_eq_symm eq_x,
+        --
 
         pr ← mk_congr_arg op eq_x,
         pr ← mk_congr_fun pr y,
-        return (new_e, pr)
+        return ((), new_e, pr)
     ) <|> (do
         coe3 ← mk_app `has_lift_t [β, α] >>= mk_instance_bis,
         new_y ← to_expr ``(@coe %%α %%δ %%coe1 (@coe %%β %%α %%coe3 %%yy)),
@@ -124,40 +126,60 @@ do
         eq_y ← mk_eq_symm eq_y,
 
         pr ← mk_congr_arg (expr.app op x) eq_y,
-        return (new_e, pr)
-    ) <|> (do
-        pr ← mk_eq_refl e,
-        return (e, pr)
+        return ((), new_e, pr)
     )
 | _ := failed
+end
 
-meta def post (_ : unit) (s : simp_lemmas) (e : expr) : tactic (unit × expr × expr) :=
+private meta def post (_ : unit) (s : simp_lemmas) (e : expr) : tactic (unit × expr × expr) :=
 do
-    (tmp_e, pr1) ← post_aux e <|> prod.mk e <$> mk_eq_refl e,
-
     s ← s.join <$> norm_cast_attr.get_cache,
     r ← mcond (is_prop e) (return `iff) (return `eq),
 
-    (new_e, pr2) ← s.rewrite tmp_e failed r,
+    (new_e, pr) ← s.rewrite e failed r,
 
-    pr2 ← match r with
-    |`iff := mk_app `propext [pr2]
-    |_    := return pr2
+    pr ← match r with
+    |`iff := mk_app `propext [pr]
+    |_    := return pr
     end,
 
-    pr ← mk_eq_trans pr1 pr2,
     return ((), new_e, pr)
+
+private meta def aux_num (_ : unit) (_ : simp_lemmas) (e : expr) : tactic (unit × expr × expr) :=
+match e with
+| `(has_one.one ℕ)        := failed
+| `(@has_one.one %%α %%h) := -- "_" instead of "%%h"?
+do
+    coe_nat ← to_expr ``(has_lift_t ℕ %%α) >>= mk_instance_bis,
+    new_e ← to_expr ``(@coe ℕ %%α %%coe_nat 1),
+
+    s ← simp_cast_attr.get_cache,
+    (e', pr) ← s.rewrite new_e,
+    pr ← mk_eq_symm pr,
+
+    return ((), new_e, pr)
+| _                       := failed
+end
 
 meta def derive (cfg : simp_config := {}) (s : simp_lemmas) (e : expr) : tactic (expr × expr) :=
 do
-    ((), e1, pr1) ← ext_simplify_core () cfg simp_lemmas.mk (λ _, failed)
+    ((), new_e, pr1) ← ext_simplify_core () {fail_if_unchanged := ff} simp_lemmas.mk (λ _, failed)
         (λ a _ _ _ e, failed)
-        (λ a _ _ _ e, do (new_a, new_e, pr) ← post a s e, guard (¬ new_e =ₐ e), return (new_a, new_e, some pr, tt))
+        (λ a _ _ _ e, do (new_a, new_e, pr) ← aux_num a s e, guard (¬ new_e =ₐ e), return (new_a, new_e, some pr, tt))
         `eq e,
+
+    ((), new_e, pr2) ← ext_simplify_core () {fail_if_unchanged := ff, ..cfg} simp_lemmas.mk (λ _, failed)
+        (λ a _ _ _ e, failed)
+        (λ a _ _ _ e, do (new_a, new_e, pr) ← post a s e <|> heur a s e, guard (¬ new_e =ₐ e), return (new_a, new_e, some pr, tt))
+        `eq new_e,
+
     s ← simp_cast_attr.get_cache,
-    (e2, pr2) ← simplify s [] e1 {fail_if_unchanged := ff},
-    pr ← mk_eq_trans pr1 pr2,
-    return (e2, pr)
+    (new_e, pr3) ← simplify s [] new_e {fail_if_unchanged := ff},
+
+    guard (¬ new_e =ₐ e),
+    pr ← mk_eq_trans pr2 pr3 >>= mk_eq_trans pr1,
+
+    return (new_e, pr)
 
 end norm_cast
 
@@ -191,7 +213,7 @@ do
     ns ← loc.get_locals,
     tt ← replace_at (derive {} simp_lemmas.mk) ns loc.include_goal
         | fail "norm_cast failed to simplify",
-    try tactic.reflexivity,
+    when loc.include_goal $ try tactic.reflexivity,
     when loc.include_goal $ try tactic.triv,
     when (¬ ns.empty) $ try tactic.contradiction
 

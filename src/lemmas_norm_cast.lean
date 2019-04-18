@@ -1,5 +1,5 @@
 import data.complex.basic data.nat.enat
-import norm_cast
+import norm_cast lemmas_simp_cast
 
 /- --------
     EQ
@@ -71,16 +71,8 @@ attribute [norm_cast] int.cast_bit1
 attribute [norm_cast] rat.cast_bit1
 attribute [norm_cast] complex.of_real_bit1
 
-@[norm_cast]
-lemma int.coe_nat_bit0 (n : ℕ) : (↑(bit0 n) : ℤ) = bit0 ↑n :=
-by {unfold bit0, simp}
-@[norm_cast]
-lemma int.coe_nat_bit1 (n : ℕ) : (↑(bit1 n) : ℤ) = bit1 ↑n :=
-by {unfold bit1, unfold bit0, simp}
-@[norm_cast]
-lemma int.cast_coe_nat_one {α} [add_monoid α] [has_one α] [has_neg α] :
-    (((1 : ℕ) : ℤ) : α) = (1 : α) :=
-by simp
+attribute [norm_cast] int.coe_nat_bit0
+attribute [norm_cast] int.coe_nat_bit1
 
 attribute [norm_cast] enat.top_add
 attribute [norm_cast] enat.add_top

@@ -3,7 +3,7 @@ unit tests suggested by Kevin Buzzard
 -/
 
 import data.complex.basic -- ℕ, ℤ, ℚ, ℝ, ℂ
-import norm_cast lemmas_simp_cast lemmas_norm_cast
+import norm_cast lemmas_norm_cast
 
 constants (an bn cn dn : ℕ) (az bz cz dz : ℤ) (aq bq cq dq : ℚ)
 constants (ar br cr dr : ℝ) (ac bc cc dc : ℂ)
@@ -42,16 +42,8 @@ example : (an : ℤ) + 5 < 10 → (an + 5) < 10 := by {intro, assumption_mod_cas
 example : ((an + 5 : ℕ) : ℤ) < 10 → an + 5 < 10 := by {intro, assumption_mod_cast}
 example : an + 5 < 10 → ((an + 5 : ℕ) : ℤ) < 10 := by {intro, assumption_mod_cast}
 
+example : az < (1 : ℕ) ↔ az < 1 := by norm_cast1
+
 example : (an - bn : ℤ) ≤ cz := by sorry
-
-example : az < 1 :=
-begin
-    -- this is bad
-    norm_cast1,
-    norm_cast1,
-    norm_cast1,
-    sorry
-end
-
 example (h : (cz : ℚ) = az / bz) : (cz : ℝ) = az / bz :=
 by sorry
