@@ -137,6 +137,7 @@ do
 
     s ← s.join <$> norm_coe_attr.get_cache,
     r ← mcond (is_prop e) (return `iff) (return `eq),
+
     (new_e, pr2) ← s.rewrite tmp_e failed r,
 
     pr2 ← match r with
@@ -149,11 +150,14 @@ do
 
 meta def derive (cfg : simp_config := {}) (s : simp_lemmas) (e : expr) : tactic (expr × expr) :=
 do
-    ((), new_e, pr) ← ext_simplify_core () cfg simp_lemmas.mk (λ _, failed)
+    ((), e1, pr1) ← ext_simplify_core () cfg simp_lemmas.mk (λ _, failed)
         (λ a _ _ _ e, failed)
         (λ a _ _ _ e, do (new_a, new_e, pr) ← post a s e, guard (¬ new_e =ₐ e), return (new_a, new_e, some pr, tt))
         `eq e,
-    return (new_e, pr)
+    s ← simp_coe_attr.get_cache,
+    (e2, pr2) ← simplify s [] e1 {fail_if_unchanged := ff},
+    pr ← mk_eq_trans pr1 pr2,
+    return (e2, pr)
 
 end norm_coe
 
