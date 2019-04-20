@@ -74,9 +74,8 @@ attribute [norm_cast] complex.of_real_bit1
 attribute [norm_cast] int.coe_nat_bit0
 attribute [norm_cast] int.coe_nat_bit1
 
-attribute [norm_cast] enat.top_add
-attribute [norm_cast] enat.add_top
 attribute [norm_cast] enat.coe_add
+
 
 /- --------
     IFF
@@ -112,6 +111,9 @@ by simp
 @[norm_cast]
 lemma gt_from_lt {α} [has_lt α] : ∀ (x y : α), x > y ↔ y < x :=
 by simp
+@[norm_cast]
+lemma ne_from_not_eq {α} : ∀ (x y : α), x ≠ y ↔ ¬(x = y):=
+by simp
 
 attribute [norm_cast] nat.cast_pos
 attribute [norm_cast] int.coe_nat_pos
@@ -138,8 +140,5 @@ attribute [norm_cast] complex.of_real_inj
 attribute [norm_cast] int.coe_nat_dvd
 attribute [norm_cast] enat.coe_le_coe
 attribute [norm_cast] enat.coe_lt_coe
-
-attribute [norm_cast] rat.zero_iff_num_zero
-attribute [norm_cast] rat.num_ne_zero_of_ne_zero
 
 run_cmd (norm_cast.norm_cast_attr.get_cache >>= tactic.trace)

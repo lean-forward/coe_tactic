@@ -98,7 +98,7 @@ do
     is_def_eq e e',
     mk_eq_symm pr
 
-private meta def heur (_ : unit) (_ : simp_lemmas) (e : expr) : tactic (unit × expr × expr) :=
+private meta def heur (_ : unit) (e : expr) : tactic (unit × expr × expr) :=
 match e with
 | (expr.app (expr.app op x) y) :=
 do
@@ -132,9 +132,9 @@ do
 | _ := failed
 end
 
-private meta def post (_ : unit) (s : simp_lemmas) (e : expr) : tactic (unit × expr × expr) :=
+private meta def post (_ : unit) (e : expr) : tactic (unit × expr × expr) :=
 do
-    s ← s.join <$> norm_cast_attr.get_cache,
+    s ← norm_cast_attr.get_cache,
     r ← mcond (is_prop e) (return `iff) (return `eq),
 
     (new_e, pr) ← s.rewrite e failed r,
@@ -146,30 +146,35 @@ do
 
     return ((), new_e, pr)
 
-private meta def aux_num (_ : unit) (_ : simp_lemmas) (e : expr) : tactic (unit × expr × expr) :=
+private meta def aux_num (_ : unit) (e : expr) : tactic (unit × expr × expr) :=
 match e with
-| `(has_one.one ℕ)        := failed
-| `(@has_one.one %%α %%h) := -- "_" instead of "%%h"?
+| `(0 : ℕ)       := failed
+| `(1 : ℕ)         := failed
+| `(@has_zero.zero %%α %%h) :=
+do
+    coe_nat ← to_expr ``(has_lift_t ℕ %%α) >>= mk_instance_bis,
+    new_e ← to_expr ``(@coe ℕ %%α %%coe_nat 0),
+    pr ← aux1 e new_e,
+    return ((), new_e, pr)
+| `(@has_one.one %%α %%h) :=
 do
     coe_nat ← to_expr ``(has_lift_t ℕ %%α) >>= mk_instance_bis,
     new_e ← to_expr ``(@coe ℕ %%α %%coe_nat 1),
-
     pr ← aux1 e new_e,
-
     return ((), new_e, pr)
 | _                       := failed
 end
 
-meta def derive (cfg : simp_config := {}) (s : simp_lemmas) (e : expr) : tactic (expr × expr) :=
+meta def derive (cfg : simp_config := {}) (e : expr) : tactic (expr × expr) :=
 do
     ((), new_e, pr1) ← ext_simplify_core () {fail_if_unchanged := ff} simp_lemmas.mk (λ _, failed)
         (λ a _ _ _ e, failed)
-        (λ a _ _ _ e, do (new_a, new_e, pr) ← aux_num a s e, guard (¬ new_e =ₐ e), return (new_a, new_e, some pr, tt))
+        (λ a _ _ _ e, do (new_a, new_e, pr) ← aux_num a e, guard (¬ new_e =ₐ e), return (new_a, new_e, some pr, tt))
         `eq e,
 
     ((), new_e, pr2) ← ext_simplify_core () {fail_if_unchanged := ff, ..cfg} simp_lemmas.mk (λ _, failed)
         (λ a _ _ _ e, failed)
-        (λ a _ _ _ e, do (new_a, new_e, pr) ← post a s e <|> heur a s e, guard (¬ new_e =ₐ e), return (new_a, new_e, some pr, tt))
+        (λ a _ _ _ e, do (new_a, new_e, pr) ← post a e <|> heur a e, guard (¬ new_e =ₐ e), return (new_a, new_e, some pr, tt))
         `eq new_e,
 
     s ← simp_cast_attr.get_cache,
@@ -189,17 +194,22 @@ open norm_cast
 
 meta def assumption_mod_cast : tactic unit :=
 do {
-    let cfg : simp_config := {fail_if_unchanged := ff, canonize_instances := ff, canonize_proofs := ff, proj := ff},
+    let cfg : simp_config := {
+        fail_if_unchanged := ff,
+        canonize_instances := ff,
+        canonize_proofs := ff,
+        proj := ff
+    },
     ctx ← local_context,
-    _ ← replace_at (derive cfg simp_lemmas.mk) ctx tt,
+    _ ← replace_at (derive cfg) ctx tt,
     assumption
-} <|> fail "assumption modulo casting failed"
+} <|> fail "assumption modulo cast failed"
 
 end tactic
 
 
 namespace tactic.interactive
-open tactic interactive interactive.types expr lean.parser
+open tactic interactive tactic.interactive interactive.types expr lean.parser
 open norm_cast
 
 local postfix `?`:9001 := optional
@@ -207,18 +217,30 @@ local postfix `?`:9001 := optional
 meta def assumption_mod_cast : tactic unit :=
 tactic.assumption_mod_cast
 
-meta def norm_cast1 (hs : parse simp_arg_list) (loc : parse location) : tactic unit :=
+meta def norm_cast1 (loc : parse location) : tactic unit :=
 do
     ns ← loc.get_locals,
-    tt ← replace_at (derive {} simp_lemmas.mk) ns loc.include_goal
+    tt ← replace_at (derive {}) ns loc.include_goal
         | fail "norm_cast failed to simplify",
     when loc.include_goal $ try tactic.reflexivity,
     when loc.include_goal $ try tactic.triv,
     when (¬ ns.empty) $ try tactic.contradiction
 
+meta def rw_mod_cast (rs : parse rw_rules) (loc : parse location) : tactic unit :=
+do
+    let cfg_norm : simp_config := {},
+    let cfg_rw : rewrite_cfg := {},
+    ns ← loc.get_locals,
+    _ ← replace_at (derive cfg_norm) ns loc.include_goal,
+    monad.mapm' (λ r, do
+        rw ⟨[r], none⟩ loc cfg_rw,
+        _ ← replace_at (derive cfg_norm) ns loc.include_goal,
+        skip
+    ) rs.rules
+
 meta def norm_cast_a (hs : parse simp_arg_list) (tgt : parse (tk "using" *> texpr)?) : tactic unit :=
 match tgt with
-| none := norm_cast1 hs (loc.ns [none]) >> assumption
+| none := norm_cast1 (loc.ns [none]) >> assumption
 | some e := do
     e ← i_to_expr e <|> do {
         ty ← target,
@@ -231,12 +253,12 @@ match tgt with
     match e with
     | local_const _ lc _ _ := do
         e ← get_local lc,
-        replace_at (derive {} simp_lemmas.mk) [e] tt,
+        replace_at (derive {}) [e] tt,
         get_local lc >>= tactic.exact
     | e := do
         t ← infer_type e,
         assertv `this t e,
-        replace_at (derive {} simp_lemmas.mk) [e] tt,
+        replace_at (derive {}) [e] tt,
         get_local `this >>= tactic.exact
     end
 end
@@ -256,6 +278,6 @@ namespace conv.interactive
 open conv tactic tactic.interactive interactive interactive.types
 open norm_cast (derive)
 
-meta def norm_cast1 : conv unit := replace_lhs (derive {} simp_lemmas.mk)
+meta def norm_cast1 : conv unit := replace_lhs (derive {})
 
 end conv.interactive

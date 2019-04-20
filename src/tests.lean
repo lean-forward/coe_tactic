@@ -24,6 +24,9 @@ example : ((an : ℤ) : ℝ) < bq ↔ (an : ℚ) < bq := by norm_cast1
 -- zero and one cause special problems
 example : 0 < (bq : ℝ) ↔ 0 < bq             := by norm_cast1
 example : aq < (1 : ℕ) ↔ (aq : ℝ) < (1 : ℤ) := by norm_cast1
+example : az > (1 : ℕ) ↔ az > 1 := by norm_cast1
+example : az > (0 : ℕ) ↔ az > 0 := by norm_cast1
+example : (an : ℤ) ≠ 0 ↔ an ≠ 0 := by norm_cast1
 
 example : (an : ℤ) + bn = (an + bn : ℕ)   := by norm_cast1
 example : (an : ℂ) + bq = ((an + bq) : ℚ) := by norm_cast1
@@ -42,8 +45,8 @@ example : (an : ℤ) + 5 < 10 → (an + 5) < 10 := by {intro, assumption_mod_cas
 example : ((an + 5 : ℕ) : ℤ) < 10 → an + 5 < 10 := by {intro, assumption_mod_cast}
 example : an + 5 < 10 → ((an + 5 : ℕ) : ℤ) < 10 := by {intro, assumption_mod_cast}
 
-example : az < (1 : ℕ) ↔ az < 1 := by norm_cast1
-
-example : (an - bn : ℤ) ≤ cz := by sorry
 example (h : (cz : ℚ) = az / bz) : (cz : ℝ) = az / bz :=
-by sorry
+begin
+    rw_mod_cast [←rat.cast_coe_int az],
+    exact h
+end

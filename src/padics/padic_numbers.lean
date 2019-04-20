@@ -9,7 +9,7 @@ Show that the p-adic norm extends to ℚ_p, that ℚ is embedded in ℚ_p, and t
 
 import data.real.cau_seq_completion topology.metric_space.cau_seq_filter
 import data.padics.padic_norm algebra.archimedean analysis.normed_space.basic
-import norm_cast lemmas_simp_cast lemmas_norm_cast
+import norm_cast lemmas_norm_cast
 noncomputable theory
 local attribute [instance, priority 1] classical.prop_decidable
 
@@ -640,8 +640,7 @@ theorem complete' : ∃ q : ℚ_[p], ∀ ε > 0, ∃ N, ∀ i ≥ N, padic_norm_
     { ring at this; exact this },
     { apply lt_of_le_of_lt,
       { apply padic_norm_e.add },
-      { have : (2 : ℚ) ≠ 0, by norm_num,
-        have : ε = ε / 2 + ε / 2, by rw ←(add_self_div_two ε); simp,
+      { have : ε = ε / 2 + ε / 2, by rw ←(add_self_div_two ε); simp,
         rw this,
         apply add_lt_add,
         { apply hN2, apply le_of_max_le_right hi },
@@ -700,6 +699,7 @@ include hp
 @[simp] protected lemma mul (q r : ℚ_[p]) : ∥q * r∥ = ∥q∥ * ∥r∥ :=
 by simp [has_norm.norm, padic_norm_e.mul']
 
+@[norm_cast]
 protected lemma is_norm (q : ℚ_[p]) : ↑(padic_norm_e q) = ∥q∥ := rfl
 
 theorem nonarchimedean (q r : ℚ_[p]) : ∥q + r∥ ≤ max (∥q∥) (∥r∥) :=
@@ -739,8 +739,9 @@ lemma eq_rat_norm (q : ℚ_[p]) : ∥q∥ = rat_norm q := classical.some_spec (p
 theorem norm_rat_le_one : ∀ {q : ℚ} (hq : ¬ p ∣ q.denom), ∥(q : ℚ_[p])∥ ≤ 1
 | ⟨n, d, hn, hd⟩ := λ hq : ¬ p ∣ d,
   if hnz : n = 0 then
-    have (⟨n, d, hn, hd⟩ : ℚ) = 0, by norm_cast_a,
-      by norm_num [this]
+    have (⟨n, d, hn, hd⟩ : ℚ) = 0,
+    from rat.zero_iff_num_zero.mpr hnz,
+    by norm_num [this]
   else
     begin
       have hnz' : {rat . num := n, denom := d, pos := hn, cop := hd} ≠ 0, from mt rat.zero_iff_num_zero.1 hnz,
@@ -750,7 +751,7 @@ theorem norm_rat_le_one : ∀ {q : ℚ} (hq : ¬ p ∣ q.denom), ∥(q : ℚ_[p]
       norm_cast1, rw h, norm_cast1, rw sub_zero,
       apply fpow_le_one_of_nonpos,
       { norm_cast_a using le_of_lt hp.gt_one, },
-      { apply neg_nonpos_of_nonneg, norm_cast1, },
+      { apply neg_nonpos_of_nonneg, norm_cast1, simp, },
     end
 
 lemma eq_of_norm_add_lt_right {p : ℕ} {hp : p.prime} {z1 z2 : ℚ_[p]}
@@ -771,16 +772,30 @@ variables {p : ℕ} [nat.prime p]
 
 set_option eqn_compiler.zeta true
 instance complete : cau_seq.is_complete ℚ_[p] norm :=
-⟨λ f,
-  let f' : cau_seq ℚ_[p] padic_norm_e :=
-    ⟨λ n, f n, λ ε hε,
-      let ⟨N, hN⟩ := is_cau f ↑ε (rat.cast_pos.2 hε) in
-      ⟨N, λ j hj, rat.cast_lt.1 (hN _ hj)⟩⟩ in
-  let ⟨q, hq⟩ := padic.complete' f' in
-  ⟨ q, setoid.symm $ λ ε hε,
-    let ⟨ε', hε'l, hε'r⟩ := exists_rat_btwn hε,
-        ⟨N, hN⟩ := hq _ (by simpa using hε'l) in
-    ⟨N, λ i hi, lt.trans (rat.cast_lt.2 (hN _ hi)) hε'r ⟩⟩⟩
+begin
+  split, intro f,
+  have cau_seq_norm_e : is_cau_seq padic_norm_e f, by {
+    intros ε hε,
+    --apply_mod_cast (is_cau f ↑ε (by norm_cast_a using hε)),
+    let h := is_cau f ↑ε (by norm_cast_a using hε),
+    norm_cast1, norm_cast1 at h,
+    exact h,
+  },
+  cases padic.complete' ⟨f, cau_seq_norm_e⟩ with q hq,
+  existsi q,
+  intros ε hε,
+  cases exists_rat_btwn hε with ε' hε',
+  norm_cast1 at hε',
+  cases hq ε' hε'.1 with N hN, existsi N,
+  intros i hi, let h := hN i hi,
+  rw_mod_cast [cau_seq.sub_apply, padic_norm_e.sub_rev],
+  refine lt.trans _ hε'.2,
+  norm_cast1, exact hN i hi,
+end
+
+attribute [simp_cast] cau_seq.const_apply
+attribute [norm_cast] cau_seq.const_inj
+attribute [norm_cast] cau_seq.const_sub
 
 lemma padic_norm_e_lim_le {f : cau_seq ℚ_[p] norm} {a : ℝ} (ha : a > 0)
       (hf : ∀ i, ∥f i∥ ≤ a) : ∥f.lim∥ ≤ a :=

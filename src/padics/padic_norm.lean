@@ -217,7 +217,8 @@ else
   begin
     unfold padic_norm; split_ifs,
     apply fpow_nonneg_of_nonneg,
-    norm_cast1
+    norm_cast1,
+    simp
   end
 
 @[simp] protected theorem mul (q r : ℚ) : padic_norm p (q*r) = padic_norm p q * padic_norm p r :=
@@ -242,7 +243,7 @@ begin
   { refine fpow_le_one_of_nonpos _ _,
     { norm_cast_a using le_of_lt hp.gt_one },
     { rw [padic_val_rat_of_int _ hp.ne_one hz, neg_nonpos],
-      norm_cast1 } },
+      norm_cast1, simp, } },
   norm_cast_a
 end
 

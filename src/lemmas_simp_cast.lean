@@ -45,3 +45,8 @@ by {unfold bit0, simp}
 @[simp_cast]
 lemma int.coe_nat_bit1 (n : ℕ) : (↑(bit1 n) : ℤ) = bit1 ↑n :=
 by {unfold bit1, unfold bit0, simp}
+
+attribute [simp_cast] rat.coe_nat_num
+attribute [simp_cast] rat.coe_int_num
+attribute [simp_cast] rat.coe_nat_denom
+attribute [simp_cast] rat.coe_int_denom
