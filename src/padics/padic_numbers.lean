@@ -644,7 +644,7 @@ theorem complete' : ∃ q : ℚ_[p], ∀ ε > 0, ∃ N, ∀ i ≥ N, padic_norm_
         rw this,
         apply add_lt_add,
         { apply hN2, apply le_of_max_le_right hi },
-        { norm_cast1, rw [padic_norm_e.sub_rev], apply hN, apply le_of_max_le_left hi } } }
+        { rw_mod_cast [padic_norm_e.sub_rev], apply hN, apply le_of_max_le_left hi } } }
   end ⟩
 
 end complete
@@ -748,7 +748,7 @@ theorem norm_rat_le_one : ∀ {q : ℚ} (hq : ¬ p ∣ q.denom), ∥(q : ℚ_[p]
       rw [padic.cast_eq_of_rat, padic_norm_e.eq_padic_norm,
           padic_norm.eq_fpow_of_nonzero p hnz', padic_val_rat_def p hnz'],
       have h : (multiplicity p d).get _ = 0, by simp [multiplicity_eq_zero_of_not_dvd, hq],
-      norm_cast1, rw h, norm_cast1, rw sub_zero,
+      rw_mod_cast [h, sub_zero],
       apply fpow_le_one_of_nonpos,
       { norm_cast_a using le_of_lt hp.gt_one, },
       { apply neg_nonpos_of_nonneg, norm_cast1, simp, },
