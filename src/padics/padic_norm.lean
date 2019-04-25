@@ -125,7 +125,7 @@ have hf2 : finite (p : ℤ) (n₂ * d₁),
       sub_le_iff_le_add',
       ← add_sub_assoc,
       le_sub_iff_add_le],
-    norm_cast1,
+    norm_cast,
     rw [← multiplicity.mul' (nat.prime_iff_prime_int.1 p_prime) hf1, add_comm,
       ← multiplicity.mul' (nat.prime_iff_prime_int.1 p_prime) hf2,
       enat.get_le_get, multiplicity_le_multiplicity_iff]
@@ -217,7 +217,7 @@ else
   begin
     unfold padic_norm; split_ifs,
     apply fpow_nonneg_of_nonneg,
-    norm_cast1,
+    norm_cast,
     simp
   end
 
@@ -243,7 +243,7 @@ begin
   { refine fpow_le_one_of_nonpos _ _,
     { exact_mod_cast le_of_lt hp.gt_one, },
     { rw [padic_val_rat_of_int _ hp.ne_one hz, neg_nonpos],
-      norm_cast1, simp, } },
+      norm_cast, simp, } },
   exact_mod_cast hz
 end
 
@@ -334,7 +334,7 @@ begin
   { apply fpow_le_of_le hp',
     apply neg_le_neg,
     rw padic_val_rat_of_int _ hp.ne_one _,
-    { norm_cast1,
+    { norm_cast,
       rw [←enat.coe_le_coe, enat.coe_get],
       apply multiplicity.le_multiplicity_of_pow_dvd,
       exact_mod_cast hd, },

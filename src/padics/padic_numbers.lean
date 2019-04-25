@@ -27,10 +27,10 @@ begin
     apply roption.ext',
     { rw [←finite_iff_dom, finite_def],
       rw [←finite_iff_dom, finite_def],
-      norm_cast1, simp,
+      norm_cast, simp,
     },
     { intros h1 h2,
-      apply _root_.le_antisymm; { apply nat.find_le, norm_cast1, simp, },
+      apply _root_.le_antisymm; { apply nat.find_le, norm_cast, simp, },
     },
 end
 
@@ -39,7 +39,7 @@ end
 theorem int.coe_nat_multiplicity (a b : ℕ) :
   multiplicity a b = multiplicity (a : ℤ) (b : ℤ) :=
   have coe_finite : finite a b ↔ finite (a : ℤ) (b : ℤ),
-  by {unfold finite, norm_cast1, simp},
+  by {unfold finite, norm_cast, simp},
   if h1 : finite a b then
     let n : ℕ := (multiplicity a b).get h1 in
     have hn : multiplicity a b = (n : enat), by simp,
@@ -468,7 +468,7 @@ variables {p : ℕ} [nat.prime p]
 
 lemma defn (f : padic_seq p) {ε : ℚ} (hε : ε > 0) : ∃ N, ∀ i ≥ N, padic_norm_e (⟦f⟧ - f i) < ε :=
 begin
-  norm_cast1,
+  norm_cast,
   change ∃ N, ∀ i ≥ N, (f - const _ (f i)).norm < ε,
   by_contradiction h,
   cases cauchy₂ f hε with N hN,
@@ -604,7 +604,7 @@ let ⟨N, hN⟩ := exi_rat_seq_conv f hε3,
 begin
   existsi max N N2,
   intros j hj,
-  norm_cast1,
+  norm_cast,
   suffices : padic_norm_e ((↑(lim_seq f j) - f (max N N2)) + (f (max N N2) - lim_seq f (max N N2))) < ε,
   { ring at this ⊢, exact_mod_cast this, },
   { apply lt_of_le_of_lt,
@@ -758,7 +758,7 @@ theorem norm_rat_le_one : ∀ {q : ℚ} (hq : ¬ p ∣ q.denom), ∥(q : ℚ_[p]
       rw_mod_cast [h, sub_zero],
       apply fpow_le_one_of_nonpos,
       { exact_mod_cast le_of_lt hp.gt_one, },
-      { apply neg_nonpos_of_nonneg, norm_cast1, simp, },
+      { apply neg_nonpos_of_nonneg, norm_cast, simp, },
     end
 
 lemma eq_of_norm_add_lt_right {p : ℕ} {hp : p.prime} {z1 z2 : ℚ_[p]}
@@ -790,7 +790,7 @@ begin
   existsi q,
   intros ε hε,
   cases exists_rat_btwn hε with ε' hε',
-  norm_cast1 at hε',
+  norm_cast at hε',
   cases hq ε' hε'.1 with N hN, existsi N,
   intros i hi, let h := hN i hi,
   rw_mod_cast [cau_seq.sub_apply, padic_norm_e.sub_rev],

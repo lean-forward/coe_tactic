@@ -224,7 +224,7 @@ local postfix `?`:9001 := optional
 meta def assumption_mod_cast : tactic unit :=
 tactic.assumption_mod_cast
 
-meta def norm_cast1 (loc : parse location) : tactic unit :=
+meta def norm_cast (loc : parse location) : tactic unit :=
 do
     ns ← loc.get_locals,
     tt ← replace_at (derive {}) ns loc.include_goal
@@ -279,6 +279,6 @@ namespace conv.interactive
 open conv tactic tactic.interactive interactive interactive.types
 open norm_cast (derive)
 
-meta def norm_cast1 : conv unit := replace_lhs (derive {})
+meta def norm_cast : conv unit := replace_lhs (derive {})
 
 end conv.interactive
