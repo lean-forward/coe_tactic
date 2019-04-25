@@ -15,54 +15,38 @@ end tactic
 namespace norm_cast
 open tactic
 
-meta def is_equation : expr → bool
-| (expr.pi n bi d b) := is_equation b
-| e                  := (expr.is_eq e).is_some
-
-meta def flip_equation_ty : expr → expr
-| (expr.pi n bi d b)           := expr.pi n bi d (flip_equation_ty b)
-| (expr.app (expr.app op x) y) := expr.app (expr.app op y) x
-| e                            := e
-
-meta def mk_local_lams_whnf : expr → tactic (list expr × expr) | e := do
-(expr.lam n bi d b) ← whnf e | return ([], e),
-p ← mk_local' n bi d,
-(ps, r) ← mk_local_lams_whnf (expr.instantiate_var b p),
-return ((p :: ps), r)
-
-meta def lam_from_locals : expr → list expr → expr
-| e ((expr.local_const n m bi t)::locals) :=
-    let e' := lam_from_locals e locals in
-    expr.lam m bi t (e'.abstract_local n)
-| e _ := e
-
-meta def flip_equation_val (e : expr) : tactic expr :=
-do
-    (locals, e1) ← mk_local_lams_whnf e,
-    e2 ← mk_eq_symm e1,
-    return $ expr.lambdas locals e2
-
 private meta def new_name : name → name
 | name.anonymous        := name.mk_string "norm_cast" name.anonymous
 | (name.mk_string s n)  := name.mk_string s (new_name n)
 | (name.mk_numeral i n) := name.mk_numeral i (new_name n)
 
+private meta def flip_equation : expr → tactic (expr × (expr → expr))
+| (expr.pi n bi d b) := do
+    (ty, f) ← flip_equation $ expr.instantiate_var b (expr.local_const n n bi d),
+    return $ (
+        expr.pi n bi d $ expr.abstract_local ty n,
+        λ e, expr.lam n bi d $ expr.abstract_local ( f $ e (expr.local_const n n bi d) ) n
+    )
+| ty := do
+    `(%%a = %%b) ← return ty | failure,
+    α ← infer_type a,
+    symm ← to_expr ``(@eq.symm %%α %%a %%b),
+    new_ty ← to_expr ``(%%b = %%a),
+    return (new_ty, symm)
+
 private meta def after_set (decl : name) (prio : ℕ) (pers : bool) : tactic unit :=
 do
     (declaration.thm n l ty task_e) ← get_decl decl | failed,
-    trace ty, -- debug
     let new_n := new_name n,
-    (do
-        guard (is_equation ty),
-
-        let e := task_e.get,
-        new_e ← flip_equation_val e,
-        let task_new_e := task.pure new_e,
-
-        let new_ty := flip_equation_ty ty,
+    ( do
+        (new_ty, f) ← flip_equation ty,
         trace new_ty, -- debug
+        let task_new_e := task.map f task_e,
         add_decl (declaration.thm new_n l new_ty task_new_e)
-    ) <|> add_decl (declaration.thm new_n l ty task_e)
+    ) <|> ( do
+        trace ty, -- debug
+        add_decl (declaration.thm new_n l ty task_e)
+    )
 
 private meta def mk_cache : list name → tactic simp_lemmas :=
 monad.foldl (λ s, s.add_simp ∘ new_name) simp_lemmas.mk
