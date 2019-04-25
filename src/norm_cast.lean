@@ -148,21 +148,19 @@ do
 
 private meta def aux_num (_ : unit) (e : expr) : tactic (unit × expr × expr) :=
 match e with
-| `(0 : ℕ)       := failed
-| `(1 : ℕ)         := failed
-| `(@has_zero.zero %%α %%h) :=
-do
+| `(0 : ℕ) := failed
+| `(1 : ℕ) := failed
+| `(@has_zero.zero %%α %%h) := do
     coe_nat ← to_expr ``(has_lift_t ℕ %%α) >>= mk_instance_bis,
     new_e ← to_expr ``(@coe ℕ %%α %%coe_nat 0),
     pr ← aux1 e new_e,
     return ((), new_e, pr)
-| `(@has_one.one %%α %%h) :=
-do
+| `(@has_one.one %%α %%h) := do
     coe_nat ← to_expr ``(has_lift_t ℕ %%α) >>= mk_instance_bis,
     new_e ← to_expr ``(@coe ℕ %%α %%coe_nat 1),
     pr ← aux1 e new_e,
     return ((), new_e, pr)
-| _                       := failed
+| _ := failed
 end
 
 meta def derive (cfg : simp_config := {}) (e : expr) : tactic (expr × expr) :=
@@ -189,8 +187,28 @@ end norm_cast
 
 
 namespace tactic
-open tactic
+open tactic expr
 open norm_cast
+
+private meta def aux_mod_cast (e : expr) : tactic expr :=
+match e with
+| local_const _ lc _ _ := do
+    e ← get_local lc,
+    replace_at (derive {}) [e] tt,
+    get_local lc
+| e := do
+    t ← infer_type e,
+    e ← assertv `this t e,
+    replace_at (derive {}) [e] tt,
+    get_local `this
+end -- TODO: error message
+
+meta def exact_mod_cast (e : expr) : tactic unit :=
+(aux_mod_cast e >>= exact) <|> fail "exact_mod_cast failed"
+
+meta def apply_mod_cast (e : expr) : tactic (list (name × expr)) :=
+(aux_mod_cast e >>= apply) <|> fail "apply_mod_cast failed"
+-- TODO: normalize the new goals
 
 meta def assumption_mod_cast : tactic unit :=
 do {
@@ -203,7 +221,7 @@ do {
     ctx ← local_context,
     _ ← replace_at (derive cfg) ctx tt,
     assumption
-} <|> fail "assumption modulo cast failed"
+} <|> fail "assumption_mod_cast failed"
 
 end tactic
 
@@ -226,6 +244,17 @@ do
     when loc.include_goal $ try tactic.triv,
     when (¬ ns.empty) $ try tactic.contradiction
 
+/-
+meta def simp_cast1 (loc : parse location) : tactic unit :=
+do
+    s ← simp_cast_attr.get_cache,
+    ns ← loc.get_locals,
+    tt ← replace_at (simplify s []) ns loc.include_goal
+        | fail "simp_cast failed to simplify",
+    when loc.include_goal $ try tactic.triv,
+    when (¬ ns.empty) $ try tactic.contradiction
+-/
+
 meta def rw_mod_cast (rs : parse rw_rules) (loc : parse location) : tactic unit :=
 do
     let cfg_norm : simp_config := {},
@@ -238,39 +267,22 @@ do
         skip
     ) rs.rules
 
-meta def norm_cast_a (hs : parse simp_arg_list) (tgt : parse (tk "using" *> texpr)?) : tactic unit :=
-match tgt with
-| none := norm_cast1 (loc.ns [none]) >> assumption
-| some e := do
+meta def exact_mod_cast (e : parse texpr) : tactic unit :=
+do
     e ← i_to_expr e <|> do {
         ty ← target,
         e ← i_to_expr_strict ``(%%e : %%ty),
         pty ← pp ty, ptgt ← pp e,
-        fail ("norm_cast_a failed, 'using' expression type not directly " ++
-        "inferrable. Try:\n\nnorm_cast_a ... using\nshow " ++
+        fail ("exact_mod_cast failed, expression type not directly " ++
+        "inferrable. Try:\n\nexact_mod_cast ...\nshow " ++
         to_fmt pty ++ ",\nfrom " ++ ptgt : format)
     },
-    match e with
-    | local_const _ lc _ _ := do
-        e ← get_local lc,
-        replace_at (derive {}) [e] tt,
-        get_local lc >>= tactic.exact
-    | e := do
-        t ← infer_type e,
-        assertv `this t e,
-        replace_at (derive {}) [e] tt,
-        get_local `this >>= tactic.exact
-    end
-end
+    tactic.exact_mod_cast e
 
-meta def simp_cast1 (loc : parse location) : tactic unit :=
+meta def apply_mod_cast (e : parse texpr) : tactic unit :=
 do
-    s ← simp_cast_attr.get_cache,
-    ns ← loc.get_locals,
-    tt ← replace_at (simplify s []) ns loc.include_goal
-        | fail "simp_cast failed to simplify",
-    when loc.include_goal $ try tactic.triv,
-    when (¬ ns.empty) $ try tactic.contradiction
+    e ← i_to_expr_for_apply e,
+    concat_tags $ tactic.apply_mod_cast e
 
 end tactic.interactive
 
