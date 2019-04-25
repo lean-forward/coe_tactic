@@ -121,7 +121,12 @@ do
     s ← norm_cast_attr.get_cache,
     r ← mcond (is_prop e) (return `iff) (return `eq),
 
-    (new_e, pr) ← s.rewrite e failed r,
+    let prove : tactic unit := do {
+        t ← target,
+        tactic.interactive.simpa none ff [] [] none
+    },
+    (new_e, pr) ← s.rewrite e prove r,
+    -- (new_e, pr) ← s.rewrite e r,
 
     pr ← match r with
     |`iff := mk_app `propext [pr]
