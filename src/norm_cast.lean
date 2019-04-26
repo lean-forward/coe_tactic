@@ -112,8 +112,7 @@ do
     `(@coe %%β %%γ %%coe2 %%yy) ← return y,
     is_def_eq δ γ,
 
-    b ← (is_def_eq α β >> return ff) <|> return tt,
-    guard b,
+    success_if_fail $ is_def_eq α β,
 
     (do
         coe3 ← mk_app `has_lift_t [α, β] >>= mk_instance_bis,
@@ -223,11 +222,17 @@ match e with
 end -- TODO: error message
 
 meta def exact_mod_cast (e : expr) : tactic unit :=
-(aux_mod_cast e >>= exact) <|> fail "exact_mod_cast failed"
+( do
+    new_e ← aux_mod_cast e,
+    exact new_e
+) <|> fail "exact_mod_cast failed"
 
-meta def apply_mod_cast (e : expr) : tactic (list (name × expr)) :=
-(aux_mod_cast e >>= apply) <|> fail "apply_mod_cast failed"
--- TODO: normalize new goals
+meta def apply_mod_cast (e : expr) : tactic unit :=
+( do
+    new_e ← aux_mod_cast e,
+    apply new_e,
+    skip
+) <|> fail "apply_mod_cast failed"
 
 meta def assumption_mod_cast : tactic unit :=
 do {
@@ -291,7 +296,7 @@ do
 meta def apply_mod_cast (e : parse texpr) : tactic unit :=
 do
     e ← i_to_expr_for_apply e,
-    concat_tags $ tactic.apply_mod_cast e
+    tactic.apply_mod_cast e
 
 meta def assumption_mod_cast : tactic unit :=
 tactic.assumption_mod_cast
