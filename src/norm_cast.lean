@@ -6,7 +6,15 @@ import tactic.basic tactic.interactive tactic.converter.interactive
 
 namespace tactic
 
-meta def mk_instance_bis (e : expr) : tactic expr :=
+/-
+this is a work around to the fact that in some cases
+mk_instance times out instead of failing
+example: has_lift_t ℤ ℕ
+
+mk_instance' is used when we can assume the type class
+inference should be instant
+-/
+meta def mk_instance' (e : expr) : tactic expr :=
     try_for 1000 (mk_instance e)
 
 end tactic
@@ -110,45 +118,40 @@ match e with
 do
     `(@coe %%α %%δ %%coe1 %%xx) ← return x,
     `(@coe %%β %%γ %%coe2 %%yy) ← return y,
+    success_if_fail $ is_def_eq α β,
     is_def_eq δ γ,
 
-    success_if_fail $ is_def_eq α β,
-
     (do
-        coe3 ← mk_app `has_lift_t [α, β] >>= mk_instance_bis,
+        coe3 ← mk_app `has_lift_t [α, β] >>= mk_instance',
         new_x ← to_expr ``(@coe %%β %%δ %%coe2 (@coe %%α %%β %%coe3 %%xx)),
         let new_e := app (app op new_x) y,
-
         eq_x ← aux_simp x new_x,
-
         pr ← mk_congr_arg op eq_x,
         pr ← mk_congr_fun pr y,
         return ((), new_e, pr)
     ) <|> (do
-        coe3 ← mk_app `has_lift_t [β, α] >>= mk_instance_bis,
+        coe3 ← mk_app `has_lift_t [β, α] >>= mk_instance',
         new_y ← to_expr ``(@coe %%α %%δ %%coe1 (@coe %%β %%α %%coe3 %%yy)),
         let new_e := app (app op x) new_y,
-
         eq_y ← aux_simp y new_y,
-
         pr ← mk_congr_arg (app op x) eq_y,
         return ((), new_e, pr)
     )
 | _ := failed
 end
 
+-- simpa is used to discharge proofs
+private meta def prove : tactic unit :=
+tactic.interactive.simpa none ff [] [] none
+
 private meta def post (_ : unit) (e : expr) : tactic (unit × expr × expr) :=
 do
     s ← norm_cast_attr.get_cache,
     r ← mcond (is_prop e) (return `iff) (return `eq),
-
-    -- simpa is used to discharge proofs
-    let prove : tactic unit := tactic.interactive.simpa none ff [] [] none,
     (new_e, pr) ← s.rewrite e prove r, -- (new_e, pr) ← s.rewrite e r,
-
     pr ← match r with
     |`iff := mk_app `propext [pr]
-    |_    := return pr
+    | _   := return pr
     end,
     return ((), new_e, pr)
 
@@ -162,12 +165,12 @@ match e with
 | `(0 : ℕ) := failed
 | `(1 : ℕ) := failed
 | `(@has_zero.zero %%α %%h) := do
-    coe_nat ← to_expr ``(has_lift_t ℕ %%α) >>= mk_instance_bis,
+    coe_nat ← to_expr ``(has_lift_t ℕ %%α) >>= mk_instance',
     new_e ← to_expr ``(@coe ℕ %%α %%coe_nat 0),
     pr ← aux_simp e new_e,
     return ((), new_e, pr)
 | `(@has_one.one %%α %%h) := do
-    coe_nat ← to_expr ``(has_lift_t ℕ %%α) >>= mk_instance_bis,
+    coe_nat ← to_expr ``(has_lift_t ℕ %%α) >>= mk_instance',
     new_e ← to_expr ``(@coe ℕ %%α %%coe_nat 1),
     pr ← aux_simp e new_e,
     return ((), new_e, pr)
@@ -195,7 +198,6 @@ do
 
     guard (¬ new_e =ₐ e),
     pr ← mk_eq_trans pr2 pr3 >>= mk_eq_trans pr1,
-
     return (new_e, pr)
 
 end norm_cast
@@ -219,7 +221,7 @@ match e with
     e ← assertv `this t e,
     replace_at (derive {}) [e] tt,
     get_local `this
-end -- TODO: error message
+end
 
 meta def exact_mod_cast (e : expr) : tactic unit :=
 ( do
@@ -243,7 +245,7 @@ do {
         proj := ff
     },
     ctx ← local_context,
-    _ ← replace_at (derive cfg) ctx tt,
+    replace_at (derive cfg) ctx tt,
     assumption
 } <|> fail "assumption_mod_cast failed"
 
@@ -274,11 +276,10 @@ do
     let cfg_rw : rewrite_cfg := {},
     ns ← loc.get_locals,
     monad.mapm' (λ r, do
-        _ ← replace_at (derive {}) ns loc.include_goal,
-        rw ⟨[r], none⟩ loc {},
-        skip
+        replace_at (derive {}) ns loc.include_goal,
+        rw ⟨[r], none⟩ loc {}
     ) rs.rules,
-    _ ← replace_at (derive {}) ns loc.include_goal,
+    replace_at (derive {}) ns loc.include_goal,
     skip
 
 meta def exact_mod_cast (e : parse texpr) : tactic unit :=
