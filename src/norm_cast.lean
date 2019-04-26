@@ -13,19 +13,27 @@ end tactic
 
 
 namespace norm_cast
-open tactic
+open tactic expr
 
 private meta def new_name : name → name
 | name.anonymous        := name.mk_string "norm_cast" name.anonymous
 | (name.mk_string s n)  := name.mk_string s (new_name n)
 | (name.mk_numeral i n) := name.mk_numeral i (new_name n)
 
+/-
+let ty an expression of the shape Π (x1 : t1) ... (x2 : tn), a = b
+let e an expression of type ty
+then flip_equation ty returns a couple (new_ty, f) such that
+    new_ty = Π A1 .. An, b = a
+    f e = λ (x1 : t1) ... (xn : tn), eq.symm (e x1 ... xn)
+if ty is not of the correct shape, then the tactic fails
+-/
 private meta def flip_equation : expr → tactic (expr × (expr → expr))
-| (expr.pi n bi d b) := do
-    (ty, f) ← flip_equation $ expr.instantiate_var b (expr.local_const n n bi d),
+| (pi n bi d b) := do
+    (ty, f) ← flip_equation $ instantiate_var b (local_const n n bi d),
     return $ (
-        expr.pi n bi d $ expr.abstract_local ty n,
-        λ e, expr.lam n bi d $ expr.abstract_local ( f $ e (expr.local_const n n bi d) ) n
+        pi n bi d $ abstract_local ty n,
+        λ e, lam n bi d $ abstract_local ( f $ e (local_const n n bi d) ) n
     )
 | ty := do
     `(%%a = %%b) ← return ty | failure,
@@ -39,6 +47,10 @@ do
     (declaration.thm n l ty task_e) ← get_decl decl | failed,
     let new_n := new_name n,
     ( do
+        /-
+        equation lemmas usually have to be flipped before
+        being added to the set of norm_cast lemmas
+        -/
         (new_ty, f) ← flip_equation ty,
         trace new_ty, -- debug
         let task_new_e := task.map f task_e,
@@ -75,16 +87,26 @@ meta def simp_cast_attr : user_attribute simp_lemmas :=
     }
 }
 
-private meta def aux1 (e new_e : expr) : tactic expr :=
+/-
+an auxiliary function that proves e = new_e
+using only simp_cast lemmas
+-/
+private meta def aux_simp (e new_e : expr) : tactic expr :=
 do
     s ← simp_cast_attr.get_cache,
     (e', pr) ← s.rewrite new_e,
     is_def_eq e e',
     mk_eq_symm pr
 
+/-
+main heuristic used alongside the norm_cast lemmas:
+an expression of the shape: op (↑(x : α) : γ) (↑(y : β) : γ)
+is rewritten as:            op (↑(↑(x : α) : β) : γ) (↑(y : β) : γ)
+when the simp_cast lemmas can prove (↑(x : α) : γ) = (↑(↑(x : α) : β) : γ)
+-/
 private meta def heur (_ : unit) (e : expr) : tactic (unit × expr × expr) :=
 match e with
-| (expr.app (expr.app op x) y) :=
+| (app (expr.app op x) y) :=
 do
     `(@coe %%α %%δ %%coe1 %%xx) ← return x,
     `(@coe %%β %%γ %%coe2 %%yy) ← return y,
@@ -96,9 +118,9 @@ do
     (do
         coe3 ← mk_app `has_lift_t [α, β] >>= mk_instance_bis,
         new_x ← to_expr ``(@coe %%β %%δ %%coe2 (@coe %%α %%β %%coe3 %%xx)),
-        let new_e := expr.app (expr.app op new_x) y,
+        let new_e := app (app op new_x) y,
 
-        eq_x ← aux1 x new_x,
+        eq_x ← aux_simp x new_x,
 
         pr ← mk_congr_arg op eq_x,
         pr ← mk_congr_fun pr y,
@@ -106,11 +128,11 @@ do
     ) <|> (do
         coe3 ← mk_app `has_lift_t [β, α] >>= mk_instance_bis,
         new_y ← to_expr ``(@coe %%α %%δ %%coe1 (@coe %%β %%α %%coe3 %%yy)),
-        let new_e := expr.app (expr.app op x) new_y,
+        let new_e := app (app op x) new_y,
 
-        eq_y ← aux1 y new_y,
+        eq_y ← aux_simp y new_y,
 
-        pr ← mk_congr_arg (expr.app op x) eq_y,
+        pr ← mk_congr_arg (app op x) eq_y,
         return ((), new_e, pr)
     )
 | _ := failed
@@ -121,20 +143,21 @@ do
     s ← norm_cast_attr.get_cache,
     r ← mcond (is_prop e) (return `iff) (return `eq),
 
-    let prove : tactic unit := do {
-        t ← target,
-        tactic.interactive.simpa none ff [] [] none
-    },
-    (new_e, pr) ← s.rewrite e prove r,
-    -- (new_e, pr) ← s.rewrite e r,
+    -- simpa is used to discharge proofs
+    let prove : tactic unit := tactic.interactive.simpa none ff [] [] none,
+    (new_e, pr) ← s.rewrite e prove r, -- (new_e, pr) ← s.rewrite e r,
 
     pr ← match r with
     |`iff := mk_app `propext [pr]
     |_    := return pr
     end,
-
     return ((), new_e, pr)
 
+/-
+before normalizing numerals are pre-processed with aux_num:
+- (1 : α) is rewritten as ((1 : ℕ) : α)
+- (0 : α) is rewritten as ((0 : ℕ) : α)
+-/
 private meta def aux_num (_ : unit) (e : expr) : tactic (unit × expr × expr) :=
 match e with
 | `(0 : ℕ) := failed
@@ -142,30 +165,34 @@ match e with
 | `(@has_zero.zero %%α %%h) := do
     coe_nat ← to_expr ``(has_lift_t ℕ %%α) >>= mk_instance_bis,
     new_e ← to_expr ``(@coe ℕ %%α %%coe_nat 0),
-    pr ← aux1 e new_e,
+    pr ← aux_simp e new_e,
     return ((), new_e, pr)
 | `(@has_one.one %%α %%h) := do
     coe_nat ← to_expr ``(has_lift_t ℕ %%α) >>= mk_instance_bis,
     new_e ← to_expr ``(@coe ℕ %%α %%coe_nat 1),
-    pr ← aux1 e new_e,
+    pr ← aux_simp e new_e,
     return ((), new_e, pr)
 | _ := failed
 end
 
+/-
+core function
+-/
 meta def derive (cfg : simp_config := {}) (e : expr) : tactic (expr × expr) :=
 do
-    ((), new_e, pr1) ← ext_simplify_core () {fail_if_unchanged := ff} simp_lemmas.mk (λ _, failed)
-        (λ a _ _ _ e, failed)
-        (λ a _ _ _ e, do (new_a, new_e, pr) ← aux_num a e, guard (¬ new_e =ₐ e), return (new_a, new_e, some pr, tt))
-        `eq e,
+    let cfg1 : simp_config := {fail_if_unchanged := ff},
+    let cfg2 : simp_config := {fail_if_unchanged := ff, ..cfg},
+    let cfg3 : simp_config := {fail_if_unchanged := ff},
 
-    ((), new_e, pr2) ← ext_simplify_core () {fail_if_unchanged := ff, ..cfg} simp_lemmas.mk (λ _, failed)
-        (λ a _ _ _ e, failed)
-        (λ a _ _ _ e, do (new_a, new_e, pr) ← post a e <|> heur a e, guard (¬ new_e =ₐ e), return (new_a, new_e, some pr, tt))
-        `eq new_e,
+    -- step 1: pre-processing numerals
+    ((), new_e, pr1) ← simplify_bottom_up () aux_num e cfg1,
 
+    -- step 2: casts are moved outwards as much as possible using norm_cast lemmas
+    ((), new_e, pr2) ← simplify_bottom_up () (λ a e, post a e <|> heur a e) new_e cfg2,
+
+    -- step 3: casts are simplified using simp_cast lemmas
     s ← simp_cast_attr.get_cache,
-    (new_e, pr3) ← simplify s [] new_e {fail_if_unchanged := ff},
+    (new_e, pr3) ← simplify s [] new_e cfg3,
 
     guard (¬ new_e =ₐ e),
     pr ← mk_eq_trans pr2 pr3 >>= mk_eq_trans pr1,
@@ -179,6 +206,9 @@ namespace tactic
 open tactic expr
 open norm_cast
 
+/-
+an auxiliary function that normalizes the goal and the given lemma
+-/
 private meta def aux_mod_cast (e : expr) : tactic expr :=
 match e with
 | local_const _ lc _ _ := do
@@ -197,7 +227,7 @@ meta def exact_mod_cast (e : expr) : tactic unit :=
 
 meta def apply_mod_cast (e : expr) : tactic (list (name × expr)) :=
 (aux_mod_cast e >>= apply) <|> fail "apply_mod_cast failed"
--- TODO: normalize the new goals
+-- TODO: normalize new goals
 
 meta def assumption_mod_cast : tactic unit :=
 do {
@@ -221,9 +251,9 @@ open norm_cast
 
 local postfix `?`:9001 := optional
 
-meta def assumption_mod_cast : tactic unit :=
-tactic.assumption_mod_cast
-
+/-
+as opposed to simp, norm_cast can be used without necessarily closing the goal
+-/
 meta def norm_cast (loc : parse location) : tactic unit :=
 do
     ns ← loc.get_locals,
@@ -233,28 +263,18 @@ do
     when loc.include_goal $ try tactic.triv,
     when (¬ ns.empty) $ try tactic.contradiction
 
-/-
-meta def simp_cast1 (loc : parse location) : tactic unit :=
-do
-    s ← simp_cast_attr.get_cache,
-    ns ← loc.get_locals,
-    tt ← replace_at (simplify s []) ns loc.include_goal
-        | fail "simp_cast failed to simplify",
-    when loc.include_goal $ try tactic.triv,
-    when (¬ ns.empty) $ try tactic.contradiction
--/
-
 meta def rw_mod_cast (rs : parse rw_rules) (loc : parse location) : tactic unit :=
 do
     let cfg_norm : simp_config := {},
     let cfg_rw : rewrite_cfg := {},
     ns ← loc.get_locals,
-    _ ← replace_at (derive cfg_norm) ns loc.include_goal,
     monad.mapm' (λ r, do
-        rw ⟨[r], none⟩ loc cfg_rw,
-        _ ← replace_at (derive cfg_norm) ns loc.include_goal,
+        _ ← replace_at (derive {}) ns loc.include_goal,
+        rw ⟨[r], none⟩ loc {},
         skip
-    ) rs.rules
+    ) rs.rules,
+    _ ← replace_at (derive {}) ns loc.include_goal,
+    skip
 
 meta def exact_mod_cast (e : parse texpr) : tactic unit :=
 do
@@ -272,6 +292,9 @@ meta def apply_mod_cast (e : parse texpr) : tactic unit :=
 do
     e ← i_to_expr_for_apply e,
     concat_tags $ tactic.apply_mod_cast e
+
+meta def assumption_mod_cast : tactic unit :=
+tactic.assumption_mod_cast
 
 end tactic.interactive
 
