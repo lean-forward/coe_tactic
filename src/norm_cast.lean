@@ -229,11 +229,10 @@ meta def exact_mod_cast (e : expr) : tactic unit :=
     exact new_e
 ) <|> fail "exact_mod_cast failed"
 
-meta def apply_mod_cast (e : expr) : tactic unit :=
+meta def apply_mod_cast (e : expr) : tactic (list (name × expr)) :=
 ( do
     new_e ← aux_mod_cast e,
-    apply new_e,
-    skip
+    apply new_e
 ) <|> fail "apply_mod_cast failed"
 
 meta def assumption_mod_cast : tactic unit :=
@@ -275,7 +274,8 @@ do
     let cfg_norm : simp_config := {},
     let cfg_rw : rewrite_cfg := {},
     ns ← loc.get_locals,
-    monad.mapm' (λ r, do
+    monad.mapm' (λ r : rw_rule, do
+        save_info r.pos,
         replace_at (derive {}) ns loc.include_goal,
         rw ⟨[r], none⟩ loc {}
     ) rs.rules,
@@ -297,7 +297,7 @@ do
 meta def apply_mod_cast (e : parse texpr) : tactic unit :=
 do
     e ← i_to_expr_for_apply e,
-    tactic.apply_mod_cast e
+    concat_tags $ tactic.apply_mod_cast e
 
 meta def assumption_mod_cast : tactic unit :=
 tactic.assumption_mod_cast
