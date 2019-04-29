@@ -8,7 +8,7 @@ Define the p-adic valuation on ℤ and ℚ, and the p-adic norm on ℚ
 
 import data.rat algebra.gcd_domain algebra.field_power
 import ring_theory.multiplicity tactic.ring
-import norm_coe lemmas_simp_coe lemmas_norm_coe
+import norm_cast lemmas_norm_cast
 
 universe u
 
@@ -25,12 +25,12 @@ if h : q ≠ 0 ∧ p ≠ 1
 then (multiplicity (p : ℤ) q.num).get
     (multiplicity.finite_int_iff.2 ⟨h.2, rat.num_ne_zero_of_ne_zero h.1⟩) -
   (multiplicity (p : ℤ) q.denom).get
-    (multiplicity.finite_int_iff.2 ⟨h.2, by norm_coe_a using rat.denom_ne_zero _⟩)
+    (multiplicity.finite_int_iff.2 ⟨h.2, by exact_mod_cast rat.denom_ne_zero _⟩)
 else 0
 
 lemma padic_val_rat_def (p : ℕ) [hp : p.prime] {q : ℚ} (hq : q ≠ 0) : padic_val_rat p q =
   (multiplicity (p : ℤ) q.num).get (finite_int_iff.2 ⟨hp.ne_one, rat.num_ne_zero_of_ne_zero hq⟩) -
-  (multiplicity (p : ℤ) q.denom).get (finite_int_iff.2 ⟨hp.ne_one, by norm_coe_a using rat.denom_ne_zero _⟩) :=
+  (multiplicity (p : ℤ) q.denom).get (finite_int_iff.2 ⟨hp.ne_one, by exact_mod_cast rat.denom_ne_zero _⟩) :=
 dif_pos ⟨hq, hp.ne_one⟩
 
 namespace padic_val_rat
@@ -84,7 +84,7 @@ by rw [padic_val_rat, dif_pos];
 protected lemma mul {q r : ℚ} (hq : q ≠ 0) (hr : r ≠ 0) :
   padic_val_rat p (q * r) = padic_val_rat p q + padic_val_rat p r :=
 have q*r = (q.num * r.num) /. (↑q.denom * ↑r.denom),
-  by {rw rat.mul_num_denom, norm_coe1},
+  by rw_mod_cast rat.mul_num_denom,
 have hq' : q.num /. q.denom ≠ 0, by rw ← rat.num_denom q; exact hq,
 have hr' : r.num /. r.denom ≠ 0, by rw ← rat.num_denom r; exact hr,
 have hp' : _root_.prime (p : ℤ), from nat.prime_iff_prime_int.1 p_prime,
@@ -125,7 +125,7 @@ have hf2 : finite (p : ℤ) (n₂ * d₁),
       sub_le_iff_le_add',
       ← add_sub_assoc,
       le_sub_iff_add_le],
-    norm_coe1,
+    norm_cast,
     rw [← multiplicity.mul' (nat.prime_iff_prime_int.1 p_prime) hf1, add_comm,
       ← multiplicity.mul' (nat.prime_iff_prime_int.1 p_prime) hf2,
       enat.get_le_get, multiplicity_le_multiplicity_iff]
@@ -137,9 +137,9 @@ theorem le_padic_val_rat_add_of_le {q r : ℚ}
   (h : padic_val_rat p q ≤ padic_val_rat p r) :
   padic_val_rat p q ≤ padic_val_rat p (q + r) :=
 have hqn : q.num ≠ 0, from rat.num_ne_zero_of_ne_zero hq,
-have hqd : (q.denom : ℤ) ≠ 0, by norm_coe_a using rat.denom_ne_zero _,
+have hqd : (q.denom : ℤ) ≠ 0, by exact_mod_cast rat.denom_ne_zero _,
 have hrn : r.num ≠ 0, from rat.num_ne_zero_of_ne_zero hr,
-have hrd : (r.denom : ℤ) ≠ 0, by norm_coe_a using rat.denom_ne_zero _,
+have hrd : (r.denom : ℤ) ≠ 0, by exact_mod_cast rat.denom_ne_zero _,
 have hqdv : q.num /. q.denom ≠ 0, from rat.mk_ne_zero_of_ne_zero hqn hqd,
 have hrdv : r.num /. r.denom ≠ 0, from rat.mk_ne_zero_of_ne_zero hrn hrd,
 have hqreq : q + r = (((q.num * r.denom + q.denom * r.num : ℤ)) /. (↑q.denom * ↑r.denom : ℤ)),
@@ -217,7 +217,8 @@ else
   begin
     unfold padic_norm; split_ifs,
     apply fpow_nonneg_of_nonneg,
-    norm_coe1
+    norm_cast,
+    simp
   end
 
 @[simp] protected theorem mul (q r : ℚ) : padic_norm p (q*r) = padic_norm p q * padic_norm p r :=
@@ -240,10 +241,10 @@ begin
   unfold padic_norm,
   rw [if_neg _],
   { refine fpow_le_one_of_nonpos _ _,
-    { norm_coe_a using le_of_lt hp.gt_one },
+    { exact_mod_cast le_of_lt hp.gt_one, },
     { rw [padic_val_rat_of_int _ hp.ne_one hz, neg_nonpos],
-      norm_coe1 } },
-  norm_coe_a
+      norm_cast, simp, } },
+  exact_mod_cast hz
 end
 
 --TODO: p implicit
@@ -263,7 +264,7 @@ else
     apply le_max_iff.2,
     left,
     apply fpow_le_of_le,
-    { norm_coe_a using le_of_lt hp.gt_one },
+    { exact_mod_cast le_of_lt hp.gt_one },
     { apply neg_le_neg,
       have : padic_val_rat p q =
               min (padic_val_rat p q) (padic_val_rat p r),
@@ -325,7 +326,7 @@ instance : is_absolute_value (padic_norm p) :=
   abv_mul := padic_norm.mul p }
 
 lemma le_of_dvd {n : ℕ} {z : ℤ} (hd : ↑(p^n) ∣ z) : padic_norm p z ≤ ↑p ^ (-n : ℤ) :=
-have hp' : (↑p : ℚ) ≥ 1, from show ↑p ≥ ↑(1 : ℕ), by norm_coe_a using (le_of_lt hp.gt_one),
+have hp' : (↑p : ℚ) ≥ 1, from show ↑p ≥ ↑(1 : ℕ), by exact_mod_cast le_of_lt hp.gt_one,
 have hpn : (↑p : ℚ) ≥ 0, from le_trans zero_le_one hp',
 begin
   unfold padic_norm, split_ifs with hz hz,
@@ -333,11 +334,11 @@ begin
   { apply fpow_le_of_le hp',
     apply neg_le_neg,
     rw padic_val_rat_of_int _ hp.ne_one _,
-    { norm_coe1,
+    { norm_cast,
       rw [←enat.coe_le_coe, enat.coe_get],
       apply multiplicity.le_multiplicity_of_pow_dvd,
-      norm_coe_a using hd },
-    { norm_coe_a using hz }
+      exact_mod_cast hd, },
+    { exact_mod_cast hz, }
   }
 end
 
