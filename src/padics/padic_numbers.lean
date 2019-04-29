@@ -8,8 +8,8 @@ Show that the p-adic norm extends to ℚ_p, that ℚ is embedded in ℚ_p, and t
 -/
 
 import data.real.cau_seq_completion topology.metric_space.cau_seq_filter
-import data.padics.padic_norm algebra.archimedean analysis.normed_space.basic
-import norm_cast lemmas_norm_cast
+import algebra.archimedean analysis.normed_space.basic
+import padics.padic_norm norm_cast lemmas_norm_cast
 noncomputable theory
 local attribute [instance, priority 1] classical.prop_decidable
 
