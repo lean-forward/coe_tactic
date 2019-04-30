@@ -7,7 +7,7 @@ import tactic.basic tactic.interactive tactic.converter.interactive
 namespace tactic
 
 /-
-this is a work around to the fact that in some cases
+This is a work around to the fact that in some cases
 mk_instance times out instead of failing
 example: has_lift_t ℤ ℕ
 
@@ -71,6 +71,19 @@ do
 private meta def mk_cache : list name → tactic simp_lemmas :=
 monad.foldl (λ s, s.add_simp ∘ new_name) simp_lemmas.mk
 
+/--
+This is an attribute for simplification rules that are going to be
+used to normalize casts.
+
+Equation lemmas are compositional lemmas of the shape
+    Π ..., ↑(P a1 ... an) = P ↑a1 ... ↑an
+Equivalence lemmas are injection lemmas of the shape
+    Π ..., P ↑a ↑b ↔ P a b
+
+Note that the goal of normalization is to move casts "upwards" in the
+expression, but compositional rules are written in a "downwards"
+fashion.
+-/
 @[user_attribute]
 meta def norm_cast_attr : user_attribute simp_lemmas :=
 {
@@ -83,6 +96,12 @@ meta def norm_cast_attr : user_attribute simp_lemmas :=
     }
 }
 
+/--
+This is an attribute given to the lemmas of the shape
+Π ..., ↑↑a = ↑a or  Π ..., ↑a = a
+
+Their are used in a heuristic to infer intermediate casts.
+-/
 @[user_attribute]
 meta def simp_cast_attr : user_attribute simp_lemmas :=
 {
@@ -96,7 +115,7 @@ meta def simp_cast_attr : user_attribute simp_lemmas :=
 }
 
 /-
-an auxiliary function that proves e = new_e
+This is an auxiliary function that proves e = new_e
 using only simp_cast lemmas
 -/
 private meta def aux_simp (e new_e : expr) : tactic expr :=
@@ -107,7 +126,7 @@ do
     mk_eq_symm pr
 
 /-
-main heuristic used alongside the norm_cast lemmas:
+This is the main heuristic used alongside the norm_cast lemmas:
 an expression of the shape: op (↑(x : α) : γ) (↑(y : β) : γ)
 is rewritten as:            op (↑(↑(x : α) : β) : γ) (↑(y : β) : γ)
 when the simp_cast lemmas can prove (↑(x : α) : γ) = (↑(↑(x : α) : β) : γ)
@@ -156,7 +175,7 @@ do
     return ((), new_e, pr)
 
 /-
-before normalizing numerals are pre-processed with aux_num:
+This is a function to pre-process numerals:
 - (1 : α) is rewritten as ((1 : ℕ) : α)
 - (0 : α) is rewritten as ((0 : ℕ) : α)
 -/
@@ -178,7 +197,7 @@ match e with
 end
 
 /-
-core function
+Core function
 -/
 meta def derive (cfg : simp_config := {}) (e : expr) : tactic (expr × expr) :=
 do
@@ -207,9 +226,6 @@ namespace tactic
 open tactic expr
 open norm_cast
 
-/-
-an auxiliary function that normalizes the goal and the given lemma
--/
 private meta def aux_mod_cast (e : expr) : tactic expr :=
 match e with
 | local_const _ lc _ _ := do
@@ -257,8 +273,10 @@ open norm_cast
 
 local postfix `?`:9001 := optional
 
-/-
-as opposed to simp, norm_cast can be used without necessarily closing the goal
+/--
+Normalize casts at the given locations by moving casts "upwards".
+As opposed to simp, norm_cast can be used without necessarily
+closing the goal.
 -/
 meta def norm_cast (loc : parse location) : tactic unit :=
 do
@@ -269,6 +287,9 @@ do
     when loc.include_goal $ try tactic.triv,
     when (¬ ns.empty) $ try tactic.contradiction
 
+/--
+Rewrite with the given rule and normalize casts after between steps.
+-/
 meta def rw_mod_cast (rs : parse rw_rules) (loc : parse location) : tactic unit :=
 do
     let cfg_norm : simp_config := {},
@@ -282,6 +303,10 @@ do
     replace_at (derive {}) ns loc.include_goal,
     skip
 
+/--
+Normalize the goal and the givin expression,
+then close the goal with exact.
+-/
 meta def exact_mod_cast (e : parse texpr) : tactic unit :=
 do
     e ← i_to_expr e <|> do {
@@ -294,11 +319,19 @@ do
     },
     tactic.exact_mod_cast e
 
+/--
+Normalize the goal and the given expression,
+then apply the exrpession.
+-/
 meta def apply_mod_cast (e : parse texpr) : tactic unit :=
 do
     e ← i_to_expr_for_apply e,
     concat_tags $ tactic.apply_mod_cast e
 
+/--
+Normalize the goal and every expression in the local context,
+then close the goal with assumption.
+-/
 meta def assumption_mod_cast : tactic unit :=
 tactic.assumption_mod_cast
 
