@@ -20,6 +20,7 @@ by norm_cast
 example : (an : ℤ) < bn ↔ an < bn             := by norm_cast -- by simp
 example : (an : ℚ) < bz ↔ (an : ℝ) < bz       := by norm_cast
 example : ((an : ℤ) : ℝ) < bq ↔ (an : ℚ) < bq := by norm_cast
+example : (an : ℤ) ≠ (bn : ℤ) ↔ an ≠ bn := by norm_cast -- by simp
 
 -- zero and one cause special problems
 example : 0 < (bq : ℝ) ↔ 0 < bq := by norm_cast -- by simp

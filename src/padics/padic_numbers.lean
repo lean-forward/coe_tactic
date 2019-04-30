@@ -403,26 +403,26 @@ lemma mk_eq {f g : padic_seq p} : mk f = mk g ↔ f ≈ g := quotient.eq
 
 def of_rat : ℚ → ℚ_[p] := cau_seq.completion.of_rat
 
-@[simp, norm_cast] lemma of_rat_add : ∀ (x y : ℚ), of_rat p (x + y) = of_rat p x + of_rat p y :=
+@[simp] lemma of_rat_add : ∀ (x y : ℚ), of_rat p (x + y) = of_rat p x + of_rat p y :=
 cau_seq.completion.of_rat_add
 
-@[simp, norm_cast] lemma of_rat_neg : ∀ (x : ℚ), of_rat p (-x) = -of_rat p x :=
+@[simp] lemma of_rat_neg : ∀ (x : ℚ), of_rat p (-x) = -of_rat p x :=
 cau_seq.completion.of_rat_neg
 
-@[simp, norm_cast] lemma of_rat_mul : ∀ (x y : ℚ), of_rat p (x * y) = of_rat p x * of_rat p y :=
+@[simp] lemma of_rat_mul : ∀ (x y : ℚ), of_rat p (x * y) = of_rat p x * of_rat p y :=
 cau_seq.completion.of_rat_mul
 
-@[simp, norm_cast] lemma of_rat_sub : ∀ (x y : ℚ), of_rat p (x - y) = of_rat p x - of_rat p y :=
+@[simp] lemma of_rat_sub : ∀ (x y : ℚ), of_rat p (x - y) = of_rat p x - of_rat p y :=
 cau_seq.completion.of_rat_sub
 
-@[simp, norm_cast] lemma of_rat_div : ∀ (x y : ℚ), of_rat p (x / y) = of_rat p x / of_rat p y :=
+@[simp] lemma of_rat_div : ∀ (x y : ℚ), of_rat p (x / y) = of_rat p x / of_rat p y :=
 cau_seq.completion.of_rat_div
 
-@[simp, simp_cast] lemma of_rat_one : of_rat p 1 = 1 := rfl
+@[simp] lemma of_rat_one : of_rat p 1 = 1 := rfl
 
-@[simp, simp_cast] lemma of_rat_zero : of_rat p 0 = 0 := rfl
+@[simp] lemma of_rat_zero : of_rat p 0 = 0 := rfl
 
-@[simp, simp_cast] lemma cast_eq_of_rat_of_nat (n : ℕ) : (↑n : ℚ_[p]) = of_rat p n :=
+@[simp] lemma cast_eq_of_rat_of_nat (n : ℕ) : (↑n : ℚ_[p]) = of_rat p n :=
 begin
   induction n with n ih,
   { refl },
@@ -432,7 +432,7 @@ end
 example {α} [discrete_field α] (n : ℤ) : α := n
 
 -- without short circuits, this needs an increase of class.instance_max_depth
-@[simp, simp_cast] lemma cast_eq_of_rat_of_int (n : ℤ) : ↑n = of_rat p n :=
+@[simp] lemma cast_eq_of_rat_of_int (n : ℤ) : ↑n = of_rat p n :=
 by induction n; simp
 
 @[simp_cast]
@@ -441,13 +441,22 @@ lemma cast_eq_of_rat : ∀ (q : ℚ), (↑q : ℚ_[p]) = of_rat p q
   show ↑n / ↑d = _, from
     have (⟨n, d, h1, h2⟩ : ℚ) = rat.mk n d, from rat.num_denom _,
     by simp [this, rat.mk_eq_div, of_rat_div]
+  
+@[norm_cast] lemma cast_rat_add : ∀ {x y : ℚ}, (↑(x + y) : ℚ_[p]) = ↑x + ↑y := by simp [cast_eq_of_rat]
+@[norm_cast] lemma cast_rat_neg : ∀ {x : ℚ}, (↑(-x) : ℚ_[p]) = -↑x := by simp [cast_eq_of_rat]
+@[norm_cast] lemma cast_rat_mul : ∀ {x y : ℚ}, (↑(x * y) : ℚ_[p]) = ↑x * ↑y := by simp [cast_eq_of_rat]
+@[norm_cast] lemma cast_rat_sub : ∀ {x y : ℚ}, (↑(x - y) : ℚ_[p]) = ↑x - ↑y := by simp [cast_eq_of_rat]
+@[norm_cast] lemma cast_rat_div : ∀ {x y : ℚ}, (↑(x / y) : ℚ_[p]) = ↑x / ↑y := by simp [cast_eq_of_rat]
+
+@[simp_cast] lemma cast_rat_one : (↑1 : ℚ_[p]) = 1 := rfl
+@[simp_cast] lemma cast_rat_zero : (↑1 : ℚ_[p]) = 1 := rfl
 
 lemma const_equiv {q r : ℚ} : const (padic_norm p) q ≈ const (padic_norm p) r ↔ q = r :=
 ⟨ λ heq : lim_zero (const (padic_norm p) (q - r)),
     eq_of_sub_eq_zero $ const_lim_zero.1 heq,
   λ heq, by rw heq; apply setoid.refl _ ⟩
 
-@[norm_cast]
+--@[norm_cast]
 lemma of_rat_eq {q r : ℚ} : of_rat p q = of_rat p r ↔ q = r :=
 ⟨(const_equiv p).1 ∘ quotient.eq.1, λ h, by rw h⟩
 
@@ -595,7 +604,6 @@ begin
   { exact le_mul_of_div_le hε (le_trans (le_of_lt hN) (by exact_mod_cast hi)) },
   { apply le_of_lt, simpa }
 end
-
 lemma exi_rat_seq_conv_cauchy : is_cau_seq (padic_norm p) (lim_seq f) :=
 assume ε hε,
 have hε3 : ε / 3 > 0, from div_pos hε (by norm_num),
@@ -797,10 +805,6 @@ begin
   refine lt.trans _ hε'.2,
   exact_mod_cast hN i hi,
 end
-
-attribute [simp_cast] cau_seq.const_apply
-attribute [norm_cast] cau_seq.const_inj
-attribute [norm_cast] cau_seq.const_sub
 
 lemma padic_norm_e_lim_le {f : cau_seq ℚ_[p] norm} {a : ℝ} (ha : a > 0)
       (hf : ∀ i, ∥f i∥ ≤ a) : ∥f.lim∥ ≤ a :=

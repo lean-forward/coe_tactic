@@ -77,7 +77,7 @@ used to normalize casts.
 
 Equation lemmas are compositional lemmas of the shape
     Π ..., ↑(P a1 ... an) = P ↑a1 ... ↑an
-Equivalence lemmas are injection lemmas of the shape
+Equivalence lemmas of the shape
     Π ..., P ↑a ↑b ↔ P a b
 
 Note that the goal of normalization is to move casts "upwards" in the
@@ -167,7 +167,8 @@ private meta def post (_ : unit) (e : expr) : tactic (unit × expr × expr) :=
 do
     s ← norm_cast_attr.get_cache,
     r ← mcond (is_prop e) (return `iff) (return `eq),
-    (new_e, pr) ← s.rewrite e prove r, -- (new_e, pr) ← s.rewrite e r,
+    (new_e, pr) ← s.rewrite e prove r,
+    -- (new_e, pr) ← s.rewrite e r,
     pr ← match r with
     |`iff := mk_app `propext [pr]
     | _   := return pr
