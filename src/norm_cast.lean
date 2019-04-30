@@ -200,21 +200,20 @@ end
 /-
 Core function
 -/
-meta def derive (cfg : simp_config := {}) (e : expr) : tactic (expr × expr) :=
+meta def derive (e : expr) : tactic (expr × expr) :=
 do
-    let cfg1 : simp_config := {fail_if_unchanged := ff},
-    let cfg2 : simp_config := {fail_if_unchanged := ff, ..cfg},
-    let cfg3 : simp_config := {fail_if_unchanged := ff},
+    e ← instantiate_mvars e,
+    let cfg : simp_config := {fail_if_unchanged := ff},
 
     -- step 1: pre-processing numerals
-    ((), new_e, pr1) ← simplify_bottom_up () aux_num e cfg1,
+    ((), new_e, pr1) ← simplify_bottom_up () aux_num e cfg,
 
     -- step 2: casts are moved outwards as much as possible using norm_cast lemmas
-    ((), new_e, pr2) ← simplify_bottom_up () (λ a e, post a e <|> heur a e) new_e cfg2,
+    ((), new_e, pr2) ← simplify_bottom_up () (λ a e, post a e <|> heur a e) new_e cfg,
 
     -- step 3: casts are simplified using simp_cast lemmas
     s ← simp_cast_attr.get_cache,
-    (new_e, pr3) ← simplify s [] new_e cfg3,
+    (new_e, pr3) ← simplify s [] new_e cfg,
 
     guard (¬ new_e =ₐ e),
     pr ← mk_eq_trans pr2 pr3 >>= mk_eq_trans pr1,
@@ -231,12 +230,12 @@ private meta def aux_mod_cast (e : expr) : tactic expr :=
 match e with
 | local_const _ lc _ _ := do
     e ← get_local lc,
-    replace_at (derive {}) [e] tt,
+    replace_at derive [e] tt,
     get_local lc
 | e := do
     t ← infer_type e,
     e ← assertv `this t e,
-    replace_at (derive {}) [e] tt,
+    replace_at derive [e] tt,
     get_local `this
 end
 
@@ -261,7 +260,7 @@ do {
         proj := ff
     },
     ctx ← local_context,
-    replace_at (derive cfg) ctx tt,
+    replace_at derive ctx tt,
     assumption
 } <|> fail "assumption_mod_cast failed"
 
@@ -282,7 +281,7 @@ closing the goal.
 meta def norm_cast (loc : parse location) : tactic unit :=
 do
     ns ← loc.get_locals,
-    tt ← replace_at (derive {}) ns loc.include_goal
+    tt ← replace_at derive ns loc.include_goal
         | fail "norm_cast failed to simplify",
     when loc.include_goal $ try tactic.reflexivity,
     when loc.include_goal $ try tactic.triv,
@@ -298,10 +297,10 @@ do
     ns ← loc.get_locals,
     monad.mapm' (λ r : rw_rule, do
         save_info r.pos,
-        replace_at (derive {}) ns loc.include_goal,
+        replace_at derive ns loc.include_goal,
         rw ⟨[r], none⟩ loc {}
     ) rs.rules,
-    replace_at (derive {}) ns loc.include_goal,
+    replace_at derive ns loc.include_goal,
     skip
 
 /--
@@ -342,6 +341,6 @@ namespace conv.interactive
 open conv tactic tactic.interactive interactive interactive.types
 open norm_cast (derive)
 
-meta def norm_cast : conv unit := replace_lhs (derive {})
+meta def norm_cast : conv unit := replace_lhs derive
 
 end conv.interactive

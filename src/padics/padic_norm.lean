@@ -244,7 +244,7 @@ begin
     { exact_mod_cast le_of_lt hp.gt_one, },
     { rw [padic_val_rat_of_int _ hp.ne_one hz, neg_nonpos],
       norm_cast, simp, } },
-  exact_mod_cast hz
+  exact_mod_cast hz,
 end
 
 --TODO: p implicit

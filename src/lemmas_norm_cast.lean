@@ -83,18 +83,6 @@ attribute [norm_cast] int.cast_inj
 attribute [norm_cast] rat.cast_inj
 attribute [norm_cast] complex.of_real_inj
 
-attribute [norm_cast] nat.cast_eq_zero
-attribute [norm_cast] int.coe_nat_eq_zero
-attribute [norm_cast] int.cast_eq_zero
-attribute [norm_cast] rat.cast_eq_zero
-attribute [norm_cast] complex.of_real_eq_zero
-
-attribute [norm_cast] nat.cast_ne_zero
-attribute [norm_cast] int.coe_nat_ne_zero
-attribute [norm_cast] int.cast_ne_zero
-attribute [norm_cast] rat.cast_ne_zero
-attribute [norm_cast] complex.of_real_ne_zero
-
 attribute [norm_cast] nat.cast_le
 attribute [norm_cast] int.coe_nat_le
 attribute [norm_cast] int.cast_le
@@ -107,27 +95,9 @@ attribute [norm_cast] int.cast_lt
 attribute [norm_cast] rat.cast_lt
 attribute [norm_cast] enat.coe_lt_coe
 
-attribute [norm_cast] int.cast_lt_zero
-attribute [norm_cast] rat.cast_lt_zero
-
-attribute [norm_cast] nat.cast_pos
-attribute [norm_cast] int.coe_nat_pos
-attribute [norm_cast] int.cast_pos
-attribute [norm_cast] rat.cast_pos
-
-attribute [norm_cast] nat.cast_nonneg
-attribute [norm_cast] int.coe_nat_nonneg
-attribute [norm_cast] int.cast_nonneg
-attribute [norm_cast] rat.cast_nonneg
-
-attribute [norm_cast] int.cast_nonpos
-attribute [norm_cast] rat.cast_nonpos
-
 attribute [norm_cast] int.coe_nat_dvd
 
 /- Special lemmas for ≥, ⋗, ≠ -/
 @[norm_cast] lemma ge_from_le {α} [has_le α] : ∀ (x y : α), x ≥ y ↔ y ≤ x := by simp
 @[norm_cast] lemma gt_from_lt {α} [has_lt α] : ∀ (x y : α), x > y ↔ y < x := by simp
 @[norm_cast] lemma ne_from_not_eq {α} : ∀ (x y : α), x ≠ y ↔ ¬(x = y) := by simp
-
-run_cmd (norm_cast.norm_cast_attr.get_cache >>= tactic.trace)

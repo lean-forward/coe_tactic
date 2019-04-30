@@ -791,8 +791,9 @@ begin
   split, intro f,
   have cau_seq_norm_e : is_cau_seq padic_norm_e f, by {
     intros ε hε,
+    --apply is_cau f ↑ε,
     apply_mod_cast is_cau f ↑ε,
-    exact hε,
+    exact_mod_cast hε,
   },
   cases padic.complete' ⟨f, cau_seq_norm_e⟩ with q hq,
   existsi q,
