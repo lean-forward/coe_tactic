@@ -3,7 +3,7 @@ unit tests suggested by Kevin Buzzard
 -/
 
 import data.complex.basic -- ℕ, ℤ, ℚ, ℝ, ℂ
-import norm_cast lemmas_norm_cast
+import norm_cast
 
 constants (an bn cn dn : ℕ) (az bz cz dz : ℤ) (aq bq cq dq : ℚ)
 constants (ar br cr dr : ℝ) (ac bc cc dc : ℂ)

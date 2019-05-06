@@ -1,8 +1,13 @@
 /-
-Normalizing casts in arithmetic expressions
+Copyright (c) 2019 Paul-Nicolas Madelaine. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Paul-Nicolas Madelaine
+
+Normalizing casts in arithmetic expressions.
 -/
 
 import tactic.basic tactic.interactive tactic.converter.interactive
+import data.complex.basic data.nat.enat
 
 namespace tactic
 
@@ -11,11 +16,11 @@ This is a work around to the fact that in some cases
 mk_instance times out instead of failing
 example: has_lift_t ℤ ℕ
 
-mk_instance' is used when we can assume the type class
-inference should be instant
+mk_instance' is used when we assume the type class search
+should end instantly
 -/
 meta def mk_instance' (e : expr) : tactic expr :=
-    try_for 1000 (mk_instance e)
+try_for 1000 (mk_instance e)
 
 end tactic
 
@@ -56,15 +61,13 @@ do
     let new_n := new_name n,
     ( do
         /-
-        equation lemmas usually have to be flipped before
+        equation lemmas have to be flipped before
         being added to the set of norm_cast lemmas
         -/
         (new_ty, f) ← flip_equation ty,
-        trace new_ty, -- debug
         let task_new_e := task.map f task_e,
         add_decl (declaration.thm new_n l new_ty task_new_e)
     ) <|> ( do
-        trace ty, -- debug
         add_decl (declaration.thm new_n l ty task_e)
     )
 
@@ -77,7 +80,7 @@ used to normalize casts.
 
 Equation lemmas are compositional lemmas of the shape
     Π ..., ↑(P a1 ... an) = P ↑a1 ... ↑an
-Equivalence lemmas of the shape
+Equivalence lemmas are of the shape
     Π ..., P ↑a ↑b ↔ P a b
 
 Note that the goal of normalization is to move casts "upwards" in the
@@ -100,14 +103,14 @@ meta def norm_cast_attr : user_attribute simp_lemmas :=
 This is an attribute given to the lemmas of the shape
 Π ..., ↑↑a = ↑a or  Π ..., ↑a = a
 
-Their are used in a heuristic to infer intermediate casts.
+They are used in a heuristic to infer intermediate casts.
 -/
 @[user_attribute]
 meta def simp_cast_attr : user_attribute simp_lemmas :=
 {
     name      := `simp_cast,
     descr     := "attribute for cast simplification",
-    after_set := some (λ n _ _, get_decl n >>= trace ∘ declaration.type), -- debug
+    after_set := none,
     cache_cfg := {
         mk_cache     := monad.foldl simp_lemmas.add_simp simp_lemmas.mk,
         dependencies := [],
@@ -126,10 +129,10 @@ do
     mk_eq_symm pr
 
 /-
-This is the main heuristic used alongside the norm_cast lemmas:
-an expression of the shape: op (↑(x : α) : γ) (↑(y : β) : γ)
+This is the main heuristic used alongside the norm_cast lemmas.
+An expression of the shape: op (↑(x : α) : γ) (↑(y : β) : γ)
 is rewritten as:            op (↑(↑(x : α) : β) : γ) (↑(y : β) : γ)
-when the simp_cast lemmas can prove (↑(x : α) : γ) = (↑(↑(x : α) : β) : γ)
+when the simp_cast lemmas can prove that (↑(x : α) : γ) = (↑(↑(x : α) : β) : γ)
 -/
 private meta def heur (_ : unit) (e : expr) : tactic (unit × expr × expr) :=
 match e with
@@ -168,7 +171,6 @@ do
     s ← norm_cast_attr.get_cache,
     r ← mcond (is_prop e) (return `iff) (return `eq),
     (new_e, pr) ← s.rewrite e prove r,
-    -- (new_e, pr) ← s.rewrite e r,
     pr ← match r with
     |`iff := mk_app `propext [pr]
     | _   := return pr
@@ -274,7 +276,7 @@ open norm_cast
 local postfix `?`:9001 := optional
 
 /--
-Normalize casts at the given locations by moving casts "upwards".
+Normalize casts at the given locations by moving them "upwards".
 As opposed to simp, norm_cast can be used without necessarily
 closing the goal.
 -/
@@ -288,10 +290,10 @@ do
     when (¬ ns.empty) $ try tactic.contradiction
 
 /--
-Rewrite with the given rule and normalize casts after between steps.
+Rewrite with the given rule and normalize casts between steps.
 -/
 meta def rw_mod_cast (rs : parse rw_rules) (loc : parse location) : tactic unit :=
-do
+( do
     let cfg_norm : simp_config := {},
     let cfg_rw : rewrite_cfg := {},
     ns ← loc.get_locals,
@@ -302,6 +304,7 @@ do
     ) rs.rules,
     replace_at derive ns loc.include_goal,
     skip
+) <|> fail "rw_mod_cast failed"
 
 /--
 Normalize the goal and the givin expression,
@@ -321,7 +324,7 @@ do
 
 /--
 Normalize the goal and the given expression,
-then apply the exrpession.
+then apply the expression to the goal.
 -/
 meta def apply_mod_cast (e : parse texpr) : tactic unit :=
 do
@@ -344,3 +347,142 @@ open norm_cast (derive)
 meta def norm_cast : conv unit := replace_lhs derive
 
 end conv.interactive
+
+/- simp_cast lemmas -/
+
+attribute [simp_cast] nat.cast_zero
+attribute [simp_cast] int.coe_nat_zero
+attribute [simp_cast] int.cast_zero
+attribute [simp_cast] rat.cast_zero
+attribute [simp_cast] complex.of_real_zero
+
+attribute [simp_cast] nat.cast_one
+attribute [simp_cast] int.coe_nat_one
+attribute [simp_cast] int.cast_one
+attribute [simp_cast] rat.cast_one
+attribute [simp_cast] complex.of_real_one
+
+attribute [simp_cast] nat.cast_id
+attribute [simp_cast] int.cast_id
+attribute [simp_cast] rat.cast_id
+
+attribute [simp_cast] int.cast_coe_nat
+attribute [simp_cast] int.cast_coe_nat'
+attribute [simp_cast] rat.cast_coe_nat
+attribute [simp_cast] rat.cast_coe_int
+attribute [simp_cast] complex.of_real_int_cast
+attribute [simp_cast] complex.of_real_nat_cast
+attribute [simp_cast] complex.of_real_rat_cast
+
+attribute [simp_cast] enat.coe_zero
+attribute [simp_cast] enat.coe_one
+attribute [simp_cast] enat.coe_get
+
+attribute [simp_cast] rat.coe_nat_num
+attribute [simp_cast] rat.coe_int_num
+attribute [simp_cast] rat.coe_nat_denom
+
+/- compositional norm_cast lemmas -/
+
+attribute [norm_cast] nat.cast_succ
+attribute [norm_cast] int.coe_nat_succ
+
+attribute [norm_cast] nat.cast_add
+attribute [norm_cast] int.coe_nat_add
+attribute [norm_cast] int.cast_add
+attribute [norm_cast] rat.cast_add
+attribute [norm_cast] complex.of_real_add
+attribute [norm_cast] enat.coe_add
+
+attribute [norm_cast] int.cast_neg_succ_of_nat
+attribute [norm_cast] int.cast_neg_of_nat
+attribute [norm_cast] int.cast_neg
+attribute [norm_cast] rat.cast_neg
+attribute [norm_cast] complex.of_real_neg
+
+attribute [norm_cast] nat.cast_sub
+attribute [norm_cast] int.cast_sub_nat_nat
+attribute [norm_cast] int.coe_nat_sub
+attribute [norm_cast] int.cast_sub
+attribute [norm_cast] rat.cast_sub
+attribute [norm_cast] complex.of_real_sub
+
+attribute [norm_cast] nat.cast_mul
+attribute [norm_cast] int.coe_nat_mul
+attribute [norm_cast] int.cast_mul
+attribute [norm_cast] rat.cast_mul
+attribute [norm_cast] complex.of_real_mul
+
+attribute [norm_cast] rat.cast_inv
+attribute [norm_cast] complex.of_real_inv
+
+attribute [norm_cast] int.coe_nat_div
+attribute [norm_cast] rat.cast_div
+attribute [norm_cast] complex.of_real_div
+
+attribute [norm_cast] nat.cast_min
+attribute [norm_cast] int.cast_min
+attribute [norm_cast] rat.cast_min
+
+attribute [norm_cast] nat.cast_max
+attribute [norm_cast] int.cast_max
+attribute [norm_cast] rat.cast_max
+
+attribute [norm_cast] int.coe_nat_abs
+attribute [norm_cast] int.cast_abs
+attribute [norm_cast] rat.cast_abs
+
+attribute [norm_cast] nat.cast_pow
+attribute [norm_cast] int.coe_nat_pow
+attribute [norm_cast] int.cast_pow
+attribute [norm_cast] rat.cast_pow
+attribute [norm_cast] complex.of_real_pow
+attribute [norm_cast] complex.of_real_fpow
+
+attribute [norm_cast] nat.cast_bit0
+@[norm_cast] lemma int.coe_nat_bit0 (n : ℕ) : (↑(bit0 n) : ℤ) = bit0 ↑n := by {unfold bit0, simp}
+attribute [norm_cast] int.cast_bit0
+attribute [norm_cast] rat.cast_bit0
+attribute [norm_cast] complex.of_real_bit0
+
+attribute [norm_cast] nat.cast_bit1
+@[norm_cast] lemma int.coe_nat_bit1 (n : ℕ) : (↑(bit1 n) : ℤ) = bit1 ↑n := by {unfold bit1, unfold bit0, simp}
+attribute [norm_cast] int.cast_bit1
+attribute [norm_cast] rat.cast_bit1
+attribute [norm_cast] complex.of_real_bit1
+
+@[norm_cast]
+lemma ite_lemma {α β : Type} [has_coe α β] {c : Prop} [decidable c] {a b : α} :
+    ↑(ite c a b) = ite c (↑a : β) (↑b : β) :=
+if h : c then
+    by simp [h]
+else
+    by simp [h]
+
+/- equivalence norm_cast lemmas -/
+
+attribute [norm_cast] nat.cast_inj
+attribute [norm_cast] int.coe_nat_inj'
+attribute [norm_cast] int.cast_inj
+attribute [norm_cast] rat.cast_inj
+attribute [norm_cast] complex.of_real_inj
+
+attribute [norm_cast] nat.cast_le
+attribute [norm_cast] int.coe_nat_le
+attribute [norm_cast] int.cast_le
+attribute [norm_cast] rat.cast_le
+attribute [norm_cast] enat.coe_le_coe
+
+attribute [norm_cast] nat.cast_lt
+attribute [norm_cast] int.coe_nat_lt
+attribute [norm_cast] int.cast_lt
+attribute [norm_cast] rat.cast_lt
+attribute [norm_cast] enat.coe_lt_coe
+
+attribute [norm_cast] int.coe_nat_dvd
+
+/- special lemmas to unfold ≥, > and ≠ -/
+
+@[norm_cast] lemma ge_from_le {α} [has_le α] : ∀ (x y : α), x ≥ y ↔ y ≤ x := by simp
+@[norm_cast] lemma gt_from_lt {α} [has_lt α] : ∀ (x y : α), x > y ↔ y < x := by simp
+@[norm_cast] lemma ne_from_not_eq {α} : ∀ (x y : α), x ≠ y ↔ ¬(x = y) := by simp

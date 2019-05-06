@@ -8,7 +8,8 @@ Define the p-adic valuation on ℤ and ℚ, and the p-adic norm on ℚ
 
 import data.rat algebra.gcd_domain algebra.field_power
 import ring_theory.multiplicity tactic.ring
-import norm_cast lemmas_norm_cast
+import data.real.cau_seq
+import norm_cast
 
 universe u
 
@@ -83,8 +84,7 @@ by rw [padic_val_rat, dif_pos];
 
 protected lemma mul {q r : ℚ} (hq : q ≠ 0) (hr : r ≠ 0) :
   padic_val_rat p (q * r) = padic_val_rat p q + padic_val_rat p r :=
-have q*r = (q.num * r.num) /. (↑q.denom * ↑r.denom),
-  by rw_mod_cast rat.mul_num_denom,
+have q*r = (q.num * r.num) /. (↑q.denom * ↑r.denom), by rw_mod_cast rat.mul_num_denom,
 have hq' : q.num /. q.denom ≠ 0, by rw ← rat.num_denom q; exact hq,
 have hr' : r.num /. r.denom ≠ 0, by rw ← rat.num_denom r; exact hr,
 have hp' : _root_.prime (p : ℤ), from nat.prime_iff_prime_int.1 p_prime,
@@ -194,9 +194,9 @@ by simp [hq, padic_norm]
 protected lemma nonzero {q : ℚ} (hq : q ≠ 0) : padic_norm p q ≠ 0 :=
 begin
   rw padic_norm.eq_fpow_of_nonzero p hq,
-  apply fpow_ne_zero_of_ne_zero, simp,
+  apply fpow_ne_zero_of_ne_zero,
   apply ne_of_gt,
-  simpa using hp.pos
+  exact_mod_cast hp.pos
 end
 
 @[simp] protected lemma neg (q : ℚ) : padic_norm p (-q) = padic_norm p q :=
@@ -217,8 +217,7 @@ else
   begin
     unfold padic_norm; split_ifs,
     apply fpow_nonneg_of_nonneg,
-    norm_cast,
-    simp
+    norm_cast, simp
   end
 
 @[simp] protected theorem mul (q r : ℚ) : padic_norm p (q*r) = padic_norm p q * padic_norm p r :=
@@ -243,8 +242,8 @@ begin
   { refine fpow_le_one_of_nonpos _ _,
     { exact_mod_cast le_of_lt hp.gt_one, },
     { rw [padic_val_rat_of_int _ hp.ne_one hz, neg_nonpos],
-      norm_cast, simp, } },
-  exact_mod_cast hz,
+      norm_cast, simp }},
+  exact_mod_cast hz
 end
 
 --TODO: p implicit
@@ -335,11 +334,10 @@ begin
     apply neg_le_neg,
     rw padic_val_rat_of_int _ hp.ne_one _,
     { norm_cast,
-      rw [←enat.coe_le_coe, enat.coe_get],
+      rw [← enat.coe_le_coe, enat.coe_get],
       apply multiplicity.le_multiplicity_of_pow_dvd,
-      exact_mod_cast hd, },
-    { exact_mod_cast hz, }
-  }
+      exact_mod_cast hd },
+    { exact_mod_cast hz }}
 end
 
 end padic_norm
